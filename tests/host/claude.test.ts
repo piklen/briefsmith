@@ -139,3 +139,63 @@ test("evaluateClaudePromptHook injects additional context for sufficiently speci
     database.close();
   }
 });
+
+test("evaluateClaudePromptHook auto-fills high-confidence missing context instead of blocking", async () => {
+  const root = mkdtempSync(join(tmpdir(), "prompt-skill-hook-"));
+  const dataDir = join(root, "Library", "Application Support", "PromptSkill");
+  const database = new Database(join(dataDir, "skill.db"));
+  const promptRepository = new PromptRepository(database);
+  const profileRepository = new ProfileRepository(database);
+
+  promptRepository.upsertMany([
+    {
+      id: "codex:history-1",
+      tool: "codex",
+      projectPath: root,
+      sessionId: "session-1",
+      timestamp: "2026-04-19T10:00:00.000Z",
+      promptText: "优化导入逻辑并保持外部命令行为不变",
+      sourceFile: "/tmp/source.jsonl",
+      sourceOffset: 0,
+      fingerprint: "fp-history-1",
+      isFavorite: false,
+      tags: [],
+      importedAt: "2026-04-19T10:00:00.000Z"
+    }
+  ]);
+
+  profileRepository.save({
+    scope: "global",
+    confirmed: {},
+    inferred: {
+      preferred_language: "zh-CN"
+    },
+    signals: {},
+    updatedAt: "2026-04-19T10:00:00.000Z"
+  });
+
+  try {
+    const result = await evaluateClaudePromptHook(
+      {
+        cwd: root,
+        prompt: "优化一下这个导入逻辑",
+        session_id: "session-3",
+        transcript_path: join(root, "session.jsonl"),
+        permission_mode: "default",
+        hook_event_name: "UserPromptSubmit"
+      },
+      {
+        cwd: root,
+        homeDir: root
+      }
+    );
+
+    assert.equal(result?.decision ?? "", "");
+    assert.equal(
+      result?.hookSpecificOutput?.additionalContext?.includes("外部行为") ?? false,
+      true
+    );
+  } finally {
+    database.close();
+  }
+});

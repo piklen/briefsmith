@@ -1,6 +1,70 @@
-import type { CompileDecision, CompilePromptInput } from "../core/types.js";
+import type { CompileDecision, CompilePromptInput, SlotName } from "../core/types.js";
 import { buildFollowUpQuestions } from "./clarifier.js";
 import { detectMissingSlots } from "./slot-detector.js";
+
+const CHINESE_PATTERN = /[\u4e00-\u9fff]/;
+const SUCCESS_HINTS = [
+  {
+    pattern: /optimi[sz]e|performance|优化/i,
+    zh: "提升可读性、减少重复，并让实现更稳定。",
+    en: "Improve readability, reduce duplication, and make the implementation more stable."
+  },
+  {
+    pattern: /fix|bug|broken|修复|报错/i,
+    zh: "恢复正确行为，并定位导致问题的直接原因。",
+    en: "Restore correct behavior and identify the direct cause of the issue."
+  },
+  {
+    pattern: /review|audit|检查|审查/i,
+    zh: "找出具体问题、风险点和缺失的验证。",
+    en: "Identify concrete issues, risks, and missing verification."
+  },
+  {
+    pattern: /build|create|implement|实现|构建/i,
+    zh: "交付可运行实现，并保证接入方式清晰。",
+    en: "Deliver a working implementation with a clear integration path."
+  },
+  {
+    pattern: /explain|why|原因|解释/i,
+    zh: "解释根因、机制和关键边界条件。",
+    en: "Explain the root cause, mechanism, and key boundary conditions."
+  },
+  {
+    pattern: /plan|设计|方案|规划/i,
+    zh: "给出可执行方案，并说明风险与回滚方式。",
+    en: "Provide an actionable plan with risks and rollback considerations."
+  }
+] as const;
+const EXPLICIT_CONSTRAINT_PATTERN = /(保持[^，。；,.!?\n]{0,40}(?:不变|不修改|不动|兼容)|不要[^，。；,.!?\n]{0,40}|不能[^，。；,.!?\n]{0,40}|do not[^,.;!?\n]{0,60}|don't[^,.;!?\n]{0,60}|without[^,.;!?\n]{0,60}|keep[^,.;!?\n]{0,60}|preserve[^,.;!?\n]{0,60})/i;
+const CHINESE_TARGET_PATTERNS = [
+  /(?:这个|该|此|那个)([\u4e00-\u9fffA-Za-z0-9_-]{2,24})/i,
+  /([\u4e00-\u9fffA-Za-z0-9_-]{2,24}(?:导入逻辑|导入器|查询|接口|模块|函数|脚本|命令|流程|适配器|配置|组件|页面|服务|数据库|测试|文档|提示词))/i,
+  /([\u4e00-\u9fffA-Za-z0-9_-]{2,24}(?:逻辑|行为|结构|策略|实现|解析))/i
+] as const;
+const ENGLISH_TARGET_PATTERNS = [
+  /\b(?:this|that|the)\s+([a-z][a-z0-9_-]*(?:\s+[a-z][a-z0-9_-]*){0,3})\b/i,
+  /\b([a-z][a-z0-9_-]*(?:\s+[a-z][a-z0-9_-]*){0,2}\s+(?:query|importer|import logic|module|function|script|api|hook|workflow|adapter|component|page|service|database|test|docs?))\b/i
+] as const;
+const GENERIC_TARGETS = new Set([
+  "this",
+  "that",
+  "it",
+  "logic",
+  "code",
+  "thing",
+  "stuff",
+  "部分",
+  "内容",
+  "地方",
+  "代码",
+  "功能",
+  "模块",
+  "脚本",
+  "文件",
+  "逻辑",
+  "问题",
+  "东西"
+]);
 
 export function compilePrompt(input: CompilePromptInput): string {
   const defaults = Object.entries(input.inferredDefaults)
@@ -39,23 +103,165 @@ export function compileOrClarify(
   retrievedPromptSnippets: string[]
 ): CompileDecision {
   const missingResult = detectMissingSlots(rawInput);
+  const resolvedSlots = resolveMissingSlots(
+    rawInput,
+    missingResult.missing,
+    inferredDefaults,
+    retrievedPromptSnippets
+  );
+  const unresolved = missingResult.missing.filter((slot) => !resolvedSlots[slot]);
+  const followUpQuestions = buildFollowUpQuestions(unresolved);
 
-  if (missingResult.needsFollowUp) {
+  if (shouldAskFollowUp(unresolved)) {
     return {
       kind: "questions",
-      text: buildFollowUpQuestions(missingResult.missing).join("\n"),
-      missing: missingResult.missing
+      text: followUpQuestions.join("\n"),
+      missing: unresolved,
+      resolvedSlots,
+      followUpQuestions
     };
   }
 
+  const compiled = compilePrompt({
+    rawInput,
+    inferredDefaults,
+    followUpAnswers: resolvedSlots,
+    retrievedPromptSnippets
+  });
+
   return {
     kind: "compiled",
-    text: compilePrompt({
-      rawInput,
-      inferredDefaults,
-      followUpAnswers: {},
-      retrievedPromptSnippets
-    }),
-    missing: []
+    text: compiled,
+    missing: [],
+    resolvedSlots,
+    followUpQuestions: []
   };
+}
+
+function resolveMissingSlots(
+  rawInput: string,
+  missing: SlotName[],
+  inferredDefaults: Record<string, unknown>,
+  retrievedPromptSnippets: string[]
+): Partial<Record<SlotName, string>> {
+  const resolved: Partial<Record<SlotName, string>> = {};
+
+  for (const slot of missing) {
+    if (slot === "target") {
+      const target = inferTarget(rawInput);
+      if (target) {
+        resolved.target = target;
+      }
+      continue;
+    }
+
+    if (slot === "success_criteria") {
+      const success = inferSuccessCriteria(rawInput, inferredDefaults);
+      if (success) {
+        resolved.success_criteria = success;
+      }
+      continue;
+    }
+
+    if (slot === "constraints") {
+      const constraint = inferConstraint(rawInput, retrievedPromptSnippets);
+      if (constraint) {
+        resolved.constraints = constraint;
+      }
+      continue;
+    }
+
+    if (slot === "output_format") {
+      resolved.output_format = prefersChinese(rawInput, inferredDefaults)
+        ? "结构化任务说明"
+        : "Structured task brief";
+    }
+  }
+
+  return resolved;
+}
+
+function shouldAskFollowUp(unresolved: SlotName[]): boolean {
+  return unresolved.includes("target") || unresolved.length >= 2;
+}
+
+function inferTarget(rawInput: string): string | null {
+  for (const pattern of CHINESE_TARGET_PATTERNS) {
+    const match = rawInput.match(pattern);
+    const candidate = normalizeCandidate(match?.[1]);
+    if (candidate && !GENERIC_TARGETS.has(candidate.toLowerCase())) {
+      return candidate;
+    }
+  }
+
+  for (const pattern of ENGLISH_TARGET_PATTERNS) {
+    const match = rawInput.match(pattern);
+    const candidate = normalizeCandidate(match?.[1]);
+    if (candidate && !GENERIC_TARGETS.has(candidate.toLowerCase())) {
+      return candidate;
+    }
+  }
+
+  return null;
+}
+
+function inferSuccessCriteria(
+  rawInput: string,
+  inferredDefaults: Record<string, unknown>
+): string | null {
+  const useChinese = prefersChinese(rawInput, inferredDefaults);
+
+  for (const hint of SUCCESS_HINTS) {
+    if (hint.pattern.test(rawInput)) {
+      return useChinese ? hint.zh : hint.en;
+    }
+  }
+
+  return null;
+}
+
+function inferConstraint(rawInput: string, retrievedPromptSnippets: string[]): string | null {
+  const direct = extractConstraint(rawInput);
+  if (direct) {
+    return direct;
+  }
+
+  for (const snippet of retrievedPromptSnippets) {
+    const fromHistory = extractConstraint(snippet);
+    if (fromHistory) {
+      return fromHistory;
+    }
+  }
+
+  return null;
+}
+
+function extractConstraint(text: string): string | null {
+  const match = text.match(EXPLICIT_CONSTRAINT_PATTERN);
+  const normalized = normalizeCandidate(match?.[1] ?? match?.[0]);
+  if (!normalized) {
+    return null;
+  }
+
+  return normalized.replace("外部命令行为", "外部行为（命令行为）");
+}
+
+function prefersChinese(rawInput: string, inferredDefaults: Record<string, unknown>): boolean {
+  return CHINESE_PATTERN.test(rawInput) || inferredDefaults.preferred_language === "zh-CN";
+}
+
+function normalizeCandidate(value: string | undefined): string | null {
+  if (!value) {
+    return null;
+  }
+
+  const normalized = value
+    .trim()
+    .replace(/^(?:(?:please|just)\s+)?(?:optimi[sz]e|fix|review|check|build|create|implement|write|draft|explain|plan|优化|修复|检查|审查|构建|实现|写|起草|解释|规划)(?:\s+|一下|一下吧|一下子)*/i, "")
+    .replace(/^(?:this|that|it|这个|那个|该|此)\s*/i, "")
+    .replace(/^[：:,\s]+/, "")
+    .replace(/[，。；;,.!?！？\s]+$/g, "")
+    .replace(/^(?:并且|并|and)\s+/i, "");
+
+  return normalized.length > 0 ? normalized : null;
 }

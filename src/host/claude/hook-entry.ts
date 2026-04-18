@@ -2,7 +2,7 @@ import { homedir } from "node:os";
 import { fileURLToPath } from "node:url";
 import { globalDataDir, databasePath } from "../../config/paths.js";
 import { readProjectPolicy } from "../../config/project-policy.js";
-import { compileOrClarify, compilePrompt } from "../../compiler/compiler.js";
+import { compileOrClarify } from "../../compiler/compiler.js";
 import { retrievePromptSnippets } from "../../compiler/history-retriever.js";
 import { Database } from "../../storage/database.js";
 import { ProfileRepository } from "../../storage/profile-repository.js";
@@ -52,21 +52,14 @@ export async function evaluateClaudePromptHook(
     if (decision.kind === "questions") {
       return {
         decision: "block",
-        reason: `Prompt Skill 需要先补充这些信息：\n- ${decision.text.replace(/\n/g, "\n- ")}`
+        reason: `Prompt Skill 需要先补充这些信息：\n- ${decision.followUpQuestions.join("\n- ")}`
       };
     }
-
-    const compiled = compilePrompt({
-      rawInput: input.prompt,
-      inferredDefaults: profile.inferred,
-      followUpAnswers: {},
-      retrievedPromptSnippets: snippets
-    });
 
     return {
       hookSpecificOutput: {
         hookEventName: "UserPromptSubmit",
-        additionalContext: `Prompt Skill Context\n${compiled}`
+        additionalContext: `Prompt Skill Context\n${decision.text}`
       }
     };
   } finally {

@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { detectMissingSlots } from "../../src/compiler/slot-detector.js";
-import { compilePrompt } from "../../src/compiler/compiler.js";
+import { compileOrClarify, compilePrompt } from "../../src/compiler/compiler.js";
 
 test("detectMissingSlots flags vague prompts missing success criteria and constraints", () => {
   const result = detectMissingSlots("optimize this");
@@ -35,4 +35,19 @@ test("detectMissingSlots recognizes Chinese constraint phrases", () => {
   const result = detectMissingSlots("优化这个导入逻辑，不要改变外部命令行为，输出任务说明");
 
   assert.equal(result.missing.includes("constraints"), false);
+});
+
+test("compileOrClarify auto-fills high-confidence optimize requests", () => {
+  const result = compileOrClarify(
+    "优化一下这个导入逻辑",
+    {
+      preferred_language: "zh-CN"
+    },
+    ["优化导入器并保持外部命令行为不变"]
+  );
+
+  assert.equal(result.kind, "compiled");
+  assert.equal(result.resolvedSlots.target?.includes("导入逻辑"), true);
+  assert.equal(result.resolvedSlots.constraints?.includes("外部行为"), true);
+  assert.equal(result.resolvedSlots.success_criteria?.length ? true : false, true);
 });

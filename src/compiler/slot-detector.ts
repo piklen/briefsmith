@@ -5,12 +5,13 @@ const CONSTRAINT_PATTERN = /(without|must|keep|do not|don't|保持|不要|不能
 const OUTPUT_PATTERN = /(return|output|format|markdown|json|列表|表格|文档|说明|任务说明)/i;
 const DOCUMENT_STYLE_PATTERN = /(write|draft|document|report|spec|plan|总结|文档|方案|说明)/i;
 const TARGET_PATTERN = /\b(this|it|that)\b|这个|那个/i;
+const ACTION_ONLY_PATTERN = /^(?:(?:please|just)\s+)?(?:optimi[sz]e|fix|review|check|build|create|implement|write|draft|explain|plan|优化|修复|检查|审查|构建|实现|写|起草|解释|规划)(?:\s+(?:it|this|that)|一下|一下吧|一下子)?[\s!,.?，。？]*$/i;
 
 export function detectMissingSlots(rawInput: string): MissingSlotResult {
   const input = rawInput.trim();
   const missing: SlotName[] = [];
 
-  if (input.length === 0 || TARGET_PATTERN.test(input)) {
+  if (input.length === 0 || TARGET_PATTERN.test(input) || ACTION_ONLY_PATTERN.test(input)) {
     missing.push("target");
   }
 

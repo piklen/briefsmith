@@ -52,6 +52,8 @@ export interface CompileDecision {
   kind: "questions" | "compiled";
   text: string;
   missing: SlotName[];
+  resolvedSlots: Partial<Record<SlotName, string>>;
+  followUpQuestions: string[];
 }
 
 export interface CompileSessionRecord {

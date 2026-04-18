@@ -1,7 +1,7 @@
 import { databasePath, globalDataDir } from "../../config/paths.js";
 import type { CliContext } from "../../core/types.js";
-import { compileOrClarify, compilePrompt } from "../../compiler/compiler.js";
-import { retrievePromptSnippets } from "../../compiler/history-retriever.js";
+import { compileOrClarify } from "../../compiler/compiler.js";
+import { retrievePromptEntries, retrievePromptSnippets } from "../../compiler/history-retriever.js";
 import { renderGsdContext } from "../../frameworks/gsd.js";
 import { renderGstackBrief } from "../../frameworks/gstack.js";
 import { renderSuperpowersBrief } from "../../frameworks/superpowers.js";
@@ -24,16 +24,16 @@ export async function runCompileCommand(
 
   try {
     const profile = profileRepository.load("global");
-    const historyMatches = promptRepository.search(rawInput, 3);
-    const snippets = retrievePromptSnippets(promptRepository, rawInput);
+    const historyMatches = retrievePromptEntries(promptRepository, rawInput, 3);
+    const snippets = historyMatches.map((row) => row.promptText);
     const decision = compileOrClarify(rawInput, profile.inferred, snippets);
 
     if (decision.kind === "questions") {
       compileSessionRepository.save({
         rawInput,
         compiledPrompt: "",
-        followUpQuestions: decision.text.split("\n").filter((line) => line.trim().length > 0),
-        resolvedSlots: {},
+        followUpQuestions: decision.followUpQuestions,
+        resolvedSlots: decision.resolvedSlots,
         targetFramework: framework,
         targetHost: "cli",
         usedHistoryIds: historyMatches.map((row) => row.id)
@@ -42,12 +42,7 @@ export async function runCompileCommand(
       return 0;
     }
 
-    const compiled = compilePrompt({
-      rawInput,
-      inferredDefaults: profile.inferred,
-      followUpAnswers: {},
-      retrievedPromptSnippets: snippets
-    });
+    const compiled = decision.text;
 
     const output = framework === "plain"
       ? compiled
@@ -61,7 +56,7 @@ export async function runCompileCommand(
       rawInput,
       compiledPrompt: output,
       followUpQuestions: [],
-      resolvedSlots: {},
+      resolvedSlots: decision.resolvedSlots,
       targetFramework: framework,
       targetHost: "cli",
       usedHistoryIds: historyMatches.map((row) => row.id)
@@ -127,6 +122,7 @@ function printCompileSession(
     rawInput: string;
     compiledPrompt: string;
     followUpQuestions: string[];
+    resolvedSlots: Record<string, string>;
     targetFramework: string;
     targetHost: string;
     usedHistoryIds: string[];
@@ -144,6 +140,10 @@ function printCompileSession(
   }
   if (session.followUpQuestions.length > 0) {
     context.stdout(`Follow-up Questions: ${session.followUpQuestions.join(" | ")}`);
+  }
+  const resolved = Object.entries(session.resolvedSlots);
+  if (resolved.length > 0) {
+    context.stdout(`Resolved Slots: ${resolved.map(([key, value]) => `${key}=${value}`).join(" | ")}`);
   }
   if (session.compiledPrompt.length > 0) {
     context.stdout(session.compiledPrompt);
