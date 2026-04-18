@@ -3,7 +3,7 @@
 import { fileURLToPath } from "node:url";
 import type { CliContext } from "../core/types.js";
 import { createCliContext } from "./support.js";
-import { runCompileCommand } from "./commands/compile.js";
+import { runCompileCommand, runCompileSessionsCommand } from "./commands/compile.js";
 import { runDoctorCommand } from "./commands/doctor.js";
 import { runAdaptersCommand } from "./commands/adapters.js";
 import { runFavoritesCommand } from "./commands/favorites.js";
@@ -28,6 +28,9 @@ const helpLines = [
   "prompt tags remove <id> <tag>",
   "prompt tags list <id>",
   'prompt compile "<raw input>" [--framework plain|gsd|superpowers|gstack]',
+  "prompt compile latest",
+  "prompt compile history",
+  "prompt compile show <id>",
   "prompt profile show",
   "prompt profile refresh",
   "prompt start",
@@ -79,6 +82,12 @@ export async function runCli(args: string[], partialContext?: Partial<CliContext
     case "tags":
       return runTagsCommand(rest, context);
     case "compile": {
+      if (rest.length === 1 && (rest[0] === "latest" || rest[0] === "history")) {
+        return runCompileSessionsCommand(rest, context);
+      }
+      if (rest[0] === "show" && rest[1]) {
+        return runCompileSessionsCommand(rest, context);
+      }
       const frameworkFlagIndex = rest.indexOf("--framework");
       const framework = frameworkFlagIndex >= 0 ? rest[frameworkFlagIndex + 1] ?? "plain" : "plain";
       const inputParts = frameworkFlagIndex >= 0 ? rest.slice(0, frameworkFlagIndex) : rest;

@@ -73,3 +73,79 @@ export async function runCompileCommand(
     database.close();
   }
 }
+
+export async function runCompileSessionsCommand(args: string[], context: CliContext): Promise<number> {
+  const [subcommand, id] = args;
+  const database = new Database(databasePath(globalDataDir(context.homeDir)));
+  const repository = new CompileSessionRepository(database);
+
+  try {
+    if (subcommand === "latest") {
+      const latest = repository.latest();
+      if (!latest) {
+        context.stdout("no compile sessions");
+        return 0;
+      }
+
+      printCompileSession(latest, context);
+      return 0;
+    }
+
+    if (subcommand === "history") {
+      const sessions = repository.list();
+      if (sessions.length === 0) {
+        context.stdout("no compile sessions");
+        return 0;
+      }
+
+      for (const session of sessions) {
+        context.stdout(`${session.id} | ${session.targetFramework} | ${session.createdAt} | ${session.rawInput}`);
+      }
+      return 0;
+    }
+
+    if (subcommand === "show" && id) {
+      const session = repository.getById(id);
+      if (!session) {
+        context.stderr(`compile session not found: ${id}`);
+        return 1;
+      }
+      printCompileSession(session, context);
+      return 0;
+    }
+
+    context.stderr("usage: prompt compile <latest|history|show <id>|\"<raw input>\">");
+    return 1;
+  } finally {
+    database.close();
+  }
+}
+
+function printCompileSession(
+  session: {
+    id: string;
+    rawInput: string;
+    compiledPrompt: string;
+    followUpQuestions: string[];
+    targetFramework: string;
+    targetHost: string;
+    usedHistoryIds: string[];
+    createdAt: string;
+  },
+  context: CliContext
+): void {
+  context.stdout(`Compile Session: ${session.id}`);
+  context.stdout(`Created At: ${session.createdAt}`);
+  context.stdout(`Framework: ${session.targetFramework}`);
+  context.stdout(`Host: ${session.targetHost}`);
+  context.stdout(`Raw Input: ${session.rawInput}`);
+  if (session.usedHistoryIds.length > 0) {
+    context.stdout(`Used History IDs: ${session.usedHistoryIds.join(", ")}`);
+  }
+  if (session.followUpQuestions.length > 0) {
+    context.stdout(`Follow-up Questions: ${session.followUpQuestions.join(" | ")}`);
+  }
+  if (session.compiledPrompt.length > 0) {
+    context.stdout(session.compiledPrompt);
+  }
+}
