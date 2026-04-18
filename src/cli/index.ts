@@ -9,7 +9,7 @@ import { runAdaptersCommand } from "./commands/adapters.js";
 import { runFavoritesCommand } from "./commands/favorites.js";
 import { runFindCommand } from "./commands/find.js";
 import { runImportCommand } from "./commands/import.js";
-import { runPolicyCommand } from "./commands/policy.js";
+import { runPolicyCommand, runPolicySubcommand } from "./commands/policy.js";
 import { runPreflightCommand } from "./commands/preflight.js";
 import { runProfileRefreshCommand, runProfileShowCommand } from "./commands/profile.js";
 import { runReindexCommand } from "./commands/reindex.js";
@@ -35,12 +35,16 @@ const helpLines = [
   "prompt compile show <id>",
   "prompt profile show",
   "prompt profile refresh",
+  "prompt policy show",
+  "prompt policy mode <off|suggest|auto-compile>",
+  "prompt policy threshold <cli|claude|codex|opencode> <value>",
+  "prompt policy threshold <cli|claude|codex|opencode> <target|success_criteria|constraints|output_format> <value>",
   "prompt start",
   "prompt stop",
-  "prompt doctor"
-  ,"prompt adapters list"
-  ,"prompt adapters install <claude|codex> [--scope project|global]"
-  ,"prompt adapters doctor [claude|codex] [--scope project|global]"
+  "prompt doctor",
+  "prompt adapters list",
+  "prompt adapters install <claude|codex> [--scope project|global]",
+  "prompt adapters doctor [claude|codex] [--scope project|global]"
 ];
 
 export async function runCli(args: string[], partialContext?: Partial<CliContext>): Promise<number> {
@@ -110,6 +114,8 @@ export async function runCli(args: string[], partialContext?: Partial<CliContext
       }
       context.stderr("usage: prompt profile <show|refresh>");
       return 1;
+    case "policy":
+      return runPolicySubcommand(rest, context);
     case "start":
     case "stop":
       return runPolicyCommand(command, context);

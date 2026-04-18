@@ -15,6 +15,8 @@ test("readProjectPolicy returns default confidence thresholds when config is mis
   assert.equal(policy.mode, "suggest");
   assert.equal(policy.hostConfidenceThresholds.codex, 0.7);
   assert.equal(policy.hostConfidenceThresholds.opencode, 0.75);
+  assert.equal(policy.hostSlotConfidenceThresholds.codex.success_criteria, 0.7);
+  assert.equal(policy.hostSlotConfidenceThresholds.opencode.success_criteria, 0.75);
 });
 
 test("stop and start prompt checks preserve custom host confidence thresholds", async () => {
@@ -26,14 +28,17 @@ test("stop and start prompt checks preserve custom host confidence thresholds", 
     enabled: boolean;
     mode: string;
     hostConfidenceThresholds: Record<string, number>;
+    hostSlotConfidenceThresholds: Record<string, Record<string, number>>;
   };
   assert.equal(policy.enabled, false);
   assert.equal(policy.mode, "off");
   assert.equal(policy.hostConfidenceThresholds.codex, 0.7);
+  assert.equal(policy.hostSlotConfidenceThresholds.codex.success_criteria, 0.7);
 
   policy.hostConfidenceThresholds.codex = 0.61;
   policy.hostConfidenceThresholds.opencode = 0.8;
   policy.hostConfidenceThresholds.claude = 0.5;
+  policy.hostSlotConfidenceThresholds.codex.success_criteria = 0.58;
   writeFileSync(policyPath, `${JSON.stringify(policy, null, 2)}\n`);
 
   await startPromptChecks(root);
@@ -41,6 +46,7 @@ test("stop and start prompt checks preserve custom host confidence thresholds", 
     enabled: boolean;
     mode: string;
     hostConfidenceThresholds: Record<string, number>;
+    hostSlotConfidenceThresholds: Record<string, Record<string, number>>;
   };
 
   assert.equal(policy.enabled, true);
@@ -48,4 +54,5 @@ test("stop and start prompt checks preserve custom host confidence thresholds", 
   assert.equal(policy.hostConfidenceThresholds.codex, 0.61);
   assert.equal(policy.hostConfidenceThresholds.opencode, 0.8);
   assert.equal(policy.hostConfidenceThresholds.claude, 0.5);
+  assert.equal(policy.hostSlotConfidenceThresholds.codex.success_criteria, 0.58);
 });

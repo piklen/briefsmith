@@ -21,6 +21,7 @@
 - `compile`
 - `preflight`
 - `start / stop`
+- `policy show / mode / threshold`
 - `doctor`
 - host adapters
   - `Claude Code`
@@ -76,8 +77,10 @@ node dist/src/cli/index.js preflight "优化一下这个导入逻辑" --host cod
 - `policyMode`：当前项目策略模式
 - `initialMissingSlots`：最初检测到缺失的槽位
 - `unresolvedSlots`：到 preflight 结束仍未解决的槽位
-- `lowConfidenceSlots`：已自动补全但置信度低于 host 阈值的槽位
-- `confidenceThreshold`：当前 host 使用的追问阈值
+- `lowConfidenceSlots`：已自动补全且置信度低于当前槽位阈值的槽位
+- `confidenceThreshold`：当前 host 的默认追问阈值
+- `slotConfidenceThresholds`：当前 host 每个槽位使用的置信度阈值
+- `confidenceGateApplied`：这次是否真的按低置信度规则拦截并追问
 - `resolvedSlotSources`：每个已补全槽位来自 `input / history / heuristic / default`
 - `resolvedSlotConfidence`：每个已补全槽位的置信度，范围 `0-1`
 - `historyMatchCount`：本次命中的历史 prompt 数量
@@ -99,11 +102,23 @@ node dist/src/cli/index.js preflight "优化一下这个导入逻辑" --host cod
   "hostConfidenceThresholds": {
     "codex": 0.6,
     "opencode": 0.8
+  },
+  "hostSlotConfidenceThresholds": {
+    "codex": {
+      "success_criteria": 0.55
+    }
   }
 }
 ```
 
-`prompt start` / `prompt stop` 只会切换 `enabled` 和 `mode`，不会覆盖你已经设置的 `hostConfidenceThresholds`。
+语义约定：
+
+- `hostConfidenceThresholds.<host>` 是该 host 的默认阈值。
+- `hostSlotConfidenceThresholds.<host>.<slot>` 可以覆盖某个槽位。
+- 当你执行 `prompt policy threshold codex 0.62` 时，Codex 的默认槽位阈值会一起刷新到 `0.62`。
+- 当你再执行 `prompt policy threshold codex success_criteria 0.58` 时，只覆盖 `success_criteria`，其他槽位保持默认值。
+- `prompt start` / `prompt stop` 只切换 `enabled` 和 `mode`，不会清掉你已经设置的 host / slot 阈值。
+- `mode = "auto-compile"` 会绕过低置信度追问，但不会隐藏 `lowConfidenceSlots` 和相关证据。
 
 ## 常用命令
 
@@ -175,6 +190,13 @@ node dist/src/cli/index.js preflight "优化一下这个导入逻辑" --host ope
 
 `preflight` 是给 Codex / OpenCode / 其他 host adapter 使用的稳定入口。它会先检查项目策略，再检索历史 prompt、读取用户 profile，并决定是追问还是生成可执行上下文。
 
+默认编译原则：
+
+- 保留用户明确写出的边界，例如“不要改外部行为”“保持 API 不变”。
+- 优先复用命中的历史 prompt 和用户 profile，不重复追问已经稳定的信息。
+- 只有缺少真正影响执行结果的约束时才追问。
+- `auto-compile` 只放宽拦截，不篡改 evidence，方便 host adapter 继续做自己的提示或审计。
+
 如果你在接 host adapter，推荐直接消费 JSON 输出里的这几个字段：
 
 - `action`
@@ -205,6 +227,23 @@ node dist/src/cli/index.js compile show <compile-session-id>
 node dist/src/cli/index.js stop
 node dist/src/cli/index.js start
 ```
+
+### 查看和修改项目策略
+
+```bash
+node dist/src/cli/index.js policy show
+node dist/src/cli/index.js policy mode off
+node dist/src/cli/index.js policy mode suggest
+node dist/src/cli/index.js policy mode auto-compile
+node dist/src/cli/index.js policy threshold codex 0.62
+node dist/src/cli/index.js policy threshold codex success_criteria 0.58
+```
+
+适用场景：
+
+- `mode off`：当前项目完全停用 prompt 检查。
+- `mode suggest`：低置信度时优先追问。
+- `mode auto-compile`：始终编译，但 evidence 里保留低置信度提示，适合 host 自己决定是否再追问。
 
 ### 安装 host adapters
 

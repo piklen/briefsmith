@@ -32,6 +32,8 @@ interface PreflightPayload {
     unresolvedSlots: SlotName[];
     lowConfidenceSlots: SlotName[];
     confidenceThreshold: number;
+    slotConfidenceThresholds: Record<SlotName, number>;
+    confidenceGateApplied: boolean;
     resolvedSlotSources: Partial<Record<SlotName, SlotResolutionSource>>;
     resolvedSlotConfidence: Partial<Record<SlotName, number>>;
     historyMatchCount: number;
@@ -52,6 +54,8 @@ export async function runPreflightCommand(args: string[], context: CliContext): 
 
   const policy = await readProjectPolicy(context.cwd);
   const confidenceThreshold = policy.hostConfidenceThresholds[options.host];
+  const slotConfidenceThresholds = policy.hostSlotConfidenceThresholds[options.host];
+  const confidenceGateApplied = policy.mode !== "auto-compile";
   if (!policy.enabled) {
     return outputPayload(
       {
@@ -69,6 +73,8 @@ export async function runPreflightCommand(args: string[], context: CliContext): 
           unresolvedSlots: [],
           lowConfidenceSlots: [],
           confidenceThreshold,
+          slotConfidenceThresholds,
+          confidenceGateApplied,
           resolvedSlotSources: {},
           resolvedSlotConfidence: {},
           historyMatchCount: 0,
@@ -98,9 +104,12 @@ export async function runPreflightCommand(args: string[], context: CliContext): 
     const usedHistoryIds = historyMatches.map((row) => row.id);
     const lowConfidenceSlots = findLowConfidenceSlots(
       decision.resolvedSlotConfidence,
-      confidenceThreshold
+      slotConfidenceThresholds
     );
-    const askSlots = mergeAskSlots(decision.missing, lowConfidenceSlots);
+    const askSlots = mergeAskSlots(
+      decision.missing,
+      confidenceGateApplied ? lowConfidenceSlots : []
+    );
     const questions = buildFollowUpQuestions(askSlots);
 
     if (askSlots.length > 0) {
@@ -130,6 +139,8 @@ export async function runPreflightCommand(args: string[], context: CliContext): 
             unresolvedSlots: decision.missing,
             lowConfidenceSlots,
             confidenceThreshold,
+            slotConfidenceThresholds,
+            confidenceGateApplied,
             resolvedSlotSources: decision.resolvedSlotSources,
             resolvedSlotConfidence: decision.resolvedSlotConfidence,
             historyMatchCount: historyMatches.length,
@@ -172,15 +183,17 @@ export async function runPreflightCommand(args: string[], context: CliContext): 
           policyMode: policy.mode,
           initialMissingSlots: decision.initialMissing,
           unresolvedSlots: [],
-          lowConfidenceSlots: [],
+          lowConfidenceSlots,
           confidenceThreshold,
+          slotConfidenceThresholds,
+          confidenceGateApplied,
           resolvedSlotSources: decision.resolvedSlotSources,
           resolvedSlotConfidence: decision.resolvedSlotConfidence,
           historyMatchCount: historyMatches.length,
-            historyMatches: historyEvidence
-          }
-        },
-        options.json,
+          historyMatches: historyEvidence
+        }
+      },
+      options.json,
       context
     );
   } finally {
@@ -225,6 +238,8 @@ function renderEvidenceLines(evidence: PreflightPayload["evidence"]): string {
     `- unresolved: ${evidence.unresolvedSlots.join(", ") || "none"}`,
     `- low_confidence: ${evidence.lowConfidenceSlots.join(", ") || "none"}`,
     `- confidence_threshold: ${String(evidence.confidenceThreshold)}`,
+    `- slot_thresholds: ${renderSlotThresholds(evidence.slotConfidenceThresholds)}`,
+    `- confidence_gate_applied: ${String(evidence.confidenceGateApplied)}`,
     `- history_matches: ${String(evidence.historyMatchCount)}`,
     `- history_preview: ${renderHistoryPreviews(evidence.historyMatches)}`,
     `- slot_sources: ${slotSources || "none"}`,
@@ -256,16 +271,17 @@ function mergeAskSlots(unresolved: SlotName[], lowConfidence: SlotName[]): SlotN
 
 function findLowConfidenceSlots(
   resolvedSlotConfidence: Partial<Record<SlotName, number>>,
-  threshold: number
+  slotThresholds: Record<SlotName, number>
 ): SlotName[] {
-  if (threshold <= 0) {
-    return [];
-  }
-
   return SLOT_ORDER.filter((slot) => {
     const value = resolvedSlotConfidence[slot];
+    const threshold = slotThresholds[slot];
     return typeof value === "number" && value < threshold;
   });
+}
+
+function renderSlotThresholds(slotThresholds: Record<SlotName, number>): string {
+  return SLOT_ORDER.map((slot) => `${slot}=${slotThresholds[slot].toFixed(2)}`).join(", ");
 }
 
 
