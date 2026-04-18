@@ -78,6 +78,7 @@ node dist/src/cli/index.js preflight "优化一下这个导入逻辑" --host cod
 - `unresolvedSlots`：到 preflight 结束仍未解决的槽位
 - `resolvedSlotSources`：每个已补全槽位来自 `input / history / heuristic / default`
 - `historyMatchCount`：本次命中的历史 prompt 数量
+- `historyMatches`：命中的历史 prompt 摘要数组，包含 `id / tool / preview`
 
 ## 常用命令
 

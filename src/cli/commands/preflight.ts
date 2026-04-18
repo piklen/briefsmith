@@ -30,6 +30,11 @@ interface PreflightPayload {
     unresolvedSlots: SlotName[];
     resolvedSlotSources: Partial<Record<SlotName, SlotResolutionSource>>;
     historyMatchCount: number;
+    historyMatches: Array<{
+      id: string;
+      tool: string;
+      preview: string;
+    }>;
   };
 }
 
@@ -57,7 +62,8 @@ export async function runPreflightCommand(args: string[], context: CliContext): 
           initialMissingSlots: [],
           unresolvedSlots: [],
           resolvedSlotSources: {},
-          historyMatchCount: 0
+          historyMatchCount: 0,
+          historyMatches: []
         }
       },
       options.json,
@@ -74,6 +80,11 @@ export async function runPreflightCommand(args: string[], context: CliContext): 
     const profile = profileRepository.load("global");
     const historyMatches = retrievePromptEntries(promptRepository, options.rawInput, 3);
     const snippets = historyMatches.map((row) => row.promptText);
+    const historyEvidence = historyMatches.map((entry) => ({
+      id: entry.id,
+      tool: entry.tool,
+      preview: buildPromptPreview(entry.promptText)
+    }));
     const decision = compileOrClarify(options.rawInput, profile.inferred, snippets);
     const usedHistoryIds = historyMatches.map((row) => row.id);
 
@@ -103,7 +114,8 @@ export async function runPreflightCommand(args: string[], context: CliContext): 
             initialMissingSlots: decision.initialMissing,
             unresolvedSlots: decision.missing,
             resolvedSlotSources: decision.resolvedSlotSources,
-            historyMatchCount: historyMatches.length
+            historyMatchCount: historyMatches.length,
+            historyMatches: historyEvidence
           }
         },
         options.json,
@@ -138,15 +150,16 @@ export async function runPreflightCommand(args: string[], context: CliContext): 
         resolvedSlots: decision.resolvedSlots,
         compiledPrompt,
         usedHistoryIds,
-        evidence: {
-          policyMode: policy.mode,
-          initialMissingSlots: decision.initialMissing,
-          unresolvedSlots: [],
-          resolvedSlotSources: decision.resolvedSlotSources,
-          historyMatchCount: historyMatches.length
-        }
-      },
-      options.json,
+          evidence: {
+            policyMode: policy.mode,
+            initialMissingSlots: decision.initialMissing,
+            unresolvedSlots: [],
+            resolvedSlotSources: decision.resolvedSlotSources,
+            historyMatchCount: historyMatches.length,
+            historyMatches: historyEvidence
+          }
+        },
+        options.json,
       context
     );
   } finally {
@@ -187,8 +200,26 @@ function renderEvidenceLines(evidence: PreflightPayload["evidence"]): string {
     `- initial_missing: ${evidence.initialMissingSlots.join(", ") || "none"}`,
     `- unresolved: ${evidence.unresolvedSlots.join(", ") || "none"}`,
     `- history_matches: ${String(evidence.historyMatchCount)}`,
+    `- history_preview: ${renderHistoryPreviews(evidence.historyMatches)}`,
     `- slot_sources: ${slotSources || "none"}`
   ].join("\n");
+}
+
+function renderHistoryPreviews(matches: PreflightPayload["evidence"]["historyMatches"]): string {
+  if (matches.length === 0) {
+    return "none";
+  }
+
+  return matches.map((match) => `${match.id} (${match.tool}): ${match.preview}`).join(" | ");
+}
+
+function buildPromptPreview(text: string, maxLength = 72): string {
+  const normalized = text.replace(/\s+/g, " ").trim();
+  if (normalized.length <= maxLength) {
+    return normalized;
+  }
+
+  return `${normalized.slice(0, maxLength - 1)}…`;
 }
 
 function renderForFramework(

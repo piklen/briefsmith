@@ -62,6 +62,11 @@ test("runCli preflight emits host JSON and persists the compile session", async 
       unresolvedSlots: string[];
       historyMatchCount: number;
       resolvedSlotSources: Record<string, string>;
+      historyMatches: Array<{
+        id: string;
+        tool: string;
+        preview: string;
+      }>;
     };
   };
   const verifyDatabase = new Database(databasePath(globalDataDir(homeDir)));
@@ -76,6 +81,13 @@ test("runCli preflight emits host JSON and persists the compile session", async 
   assert.deepEqual(payload.evidence.initialMissingSlots, ["target", "success_criteria", "constraints"]);
   assert.deepEqual(payload.evidence.unresolvedSlots, []);
   assert.equal(payload.evidence.historyMatchCount, 1);
+  assert.deepEqual(payload.evidence.historyMatches, [
+    {
+      id: "codex:history-1",
+      tool: "codex",
+      preview: "优化导入逻辑并保持外部命令行为不变"
+    }
+  ]);
   assert.equal(payload.evidence.resolvedSlotSources.target, "input");
   assert.equal(payload.evidence.resolvedSlotSources.success_criteria, "heuristic");
   assert.equal(payload.evidence.resolvedSlotSources.constraints, "history");
@@ -103,6 +115,11 @@ test("runCli preflight returns ask action for low-information input", async () =
       unresolvedSlots: string[];
       historyMatchCount: number;
       resolvedSlotSources: Record<string, string>;
+      historyMatches: Array<{
+        id: string;
+        tool: string;
+        preview: string;
+      }>;
     };
   };
 
@@ -113,5 +130,6 @@ test("runCli preflight returns ask action for low-information input", async () =
   assert.deepEqual(payload.evidence.initialMissingSlots, ["target", "success_criteria", "constraints"]);
   assert.deepEqual(payload.evidence.unresolvedSlots, ["target", "constraints"]);
   assert.equal(payload.evidence.historyMatchCount, 0);
+  assert.deepEqual(payload.evidence.historyMatches, []);
   assert.equal(payload.evidence.resolvedSlotSources.success_criteria, "heuristic");
 });
