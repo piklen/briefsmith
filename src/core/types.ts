@@ -54,6 +54,18 @@ export interface CompileDecision {
   missing: SlotName[];
 }
 
+export interface CompileSessionRecord {
+  id: string;
+  rawInput: string;
+  compiledPrompt: string;
+  followUpQuestions: string[];
+  resolvedSlots: Record<string, string>;
+  targetFramework: string;
+  targetHost: string;
+  usedHistoryIds: string[];
+  createdAt: string;
+}
+
 export interface DoctorCheck {
   name: string;
   status: "ok" | "warn" | "fail";

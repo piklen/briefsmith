@@ -170,6 +170,76 @@ export class PromptRepository {
     return (result.changes ?? 0) > 0;
   }
 
+  favorites(limit = 100): PromptEntry[] {
+    const rows = this.database.connection
+      .prepare(`
+        SELECT
+          id,
+          tool,
+          project_path AS projectPath,
+          session_id AS sessionId,
+          timestamp,
+          prompt_text AS promptText,
+          source_file AS sourceFile,
+          source_offset AS sourceOffset,
+          fingerprint,
+          is_favorite AS isFavorite,
+          tags_json AS tagsJson,
+          imported_at AS importedAt
+        FROM prompts
+        WHERE is_favorite = 1
+        ORDER BY timestamp DESC
+        LIMIT ?
+      `)
+      .all(limit) as Array<Record<string, unknown>>;
+
+    return rows.map((row) => ({
+      id: String(row.id),
+      tool: row.tool as PromptEntry["tool"],
+      projectPath: String(row.projectPath),
+      sessionId: String(row.sessionId),
+      timestamp: String(row.timestamp),
+      promptText: String(row.promptText),
+      sourceFile: String(row.sourceFile),
+      sourceOffset: Number(row.sourceOffset),
+      fingerprint: String(row.fingerprint),
+      isFavorite: Boolean(row.isFavorite),
+      tags: JSON.parse(String(row.tagsJson)) as string[],
+      importedAt: String(row.importedAt)
+    }));
+  }
+
+  setTags(id: string, tags: string[]): boolean {
+    const normalizedTags = normalizeTags(tags);
+    const result = this.database.connection
+      .prepare("UPDATE prompts SET tags_json = ? WHERE id = ?")
+      .run(JSON.stringify(normalizedTags), id) as { changes?: number };
+
+    return (result.changes ?? 0) > 0;
+  }
+
+  addTag(id: string, tag: string): PromptEntry | null {
+    const prompt = this.getById(id);
+    if (!prompt) {
+      return null;
+    }
+
+    const nextTags = normalizeTags([...prompt.tags, tag]);
+    this.setTags(id, nextTags);
+    return this.getById(id);
+  }
+
+  removeTag(id: string, tag: string): PromptEntry | null {
+    const prompt = this.getById(id);
+    if (!prompt) {
+      return null;
+    }
+
+    const nextTags = prompt.tags.filter((existing) => existing !== tag.trim());
+    this.setTags(id, nextTags);
+    return this.getById(id);
+  }
+
   all(limit = 500): PromptEntry[] {
     return this.search("", limit);
   }
@@ -184,4 +254,8 @@ export class PromptRepository {
       `)
       .all() as Array<{ tool: PromptEntry["tool"]; count: number }>;
   }
+}
+
+function normalizeTags(tags: string[]): string[] {
+  return [...new Set(tags.map((tag) => tag.trim()).filter((tag) => tag.length > 0))].sort();
 }

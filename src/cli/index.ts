@@ -6,6 +6,7 @@ import { createCliContext } from "./support.js";
 import { runCompileCommand } from "./commands/compile.js";
 import { runDoctorCommand } from "./commands/doctor.js";
 import { runAdaptersCommand } from "./commands/adapters.js";
+import { runFavoritesCommand } from "./commands/favorites.js";
 import { runFindCommand } from "./commands/find.js";
 import { runImportCommand } from "./commands/import.js";
 import { runPolicyCommand } from "./commands/policy.js";
@@ -13,6 +14,7 @@ import { runProfileRefreshCommand, runProfileShowCommand } from "./commands/prof
 import { runReindexCommand } from "./commands/reindex.js";
 import { runShowCommand } from "./commands/show.js";
 import { runStarCommand } from "./commands/star.js";
+import { runTagsCommand } from "./commands/tags.js";
 
 const helpLines = [
   "prompt import",
@@ -21,6 +23,10 @@ const helpLines = [
   "prompt show <id>",
   "prompt star <id>",
   "prompt unstar <id>",
+  "prompt favorites list",
+  "prompt tags add <id> <tag>",
+  "prompt tags remove <id> <tag>",
+  "prompt tags list <id>",
   'prompt compile "<raw input>" [--framework plain|gsd|superpowers|gstack]',
   "prompt profile show",
   "prompt profile refresh",
@@ -68,6 +74,10 @@ export async function runCli(args: string[], partialContext?: Partial<CliContext
         return 1;
       }
       return runStarCommand(rest[0], false, context);
+    case "favorites":
+      return runFavoritesCommand(rest, context);
+    case "tags":
+      return runTagsCommand(rest, context);
     case "compile": {
       const frameworkFlagIndex = rest.indexOf("--framework");
       const framework = frameworkFlagIndex >= 0 ? rest[frameworkFlagIndex + 1] ?? "plain" : "plain";

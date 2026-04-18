@@ -15,6 +15,8 @@
   - `Gemini`（当前仅支持可解析的 JSON / JSONL）
 - 本地 SQLite 存储
 - `find / show / star / unstar`
+- `favorites list`
+- `tags add / remove / list`
 - `profile show / profile refresh`
 - `compile`
 - `start / stop`
@@ -81,6 +83,20 @@ node dist/src/cli/index.js star <prompt-id>
 node dist/src/cli/index.js unstar <prompt-id>
 ```
 
+### 查看收藏列表
+
+```bash
+node dist/src/cli/index.js favorites list
+```
+
+### 管理 tags
+
+```bash
+node dist/src/cli/index.js tags add <prompt-id> <tag>
+node dist/src/cli/index.js tags remove <prompt-id> <tag>
+node dist/src/cli/index.js tags list <prompt-id>
+```
+
 ### 刷新用户 profile
 
 ```bash
@@ -92,6 +108,8 @@ node dist/src/cli/index.js profile refresh
 ```bash
 node dist/src/cli/index.js compile "优化这个导入逻辑，不要改变外部命令行为，输出一个 superpowers 可直接消费的任务说明" --framework superpowers
 ```
+
+每次 `compile` 都会写入本地 `compile_sessions`，用于后续调试和复盘。
 
 支持的 framework 输出：
 

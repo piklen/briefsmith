@@ -6,6 +6,7 @@ import { renderGsdContext } from "../../frameworks/gsd.js";
 import { renderGstackBrief } from "../../frameworks/gstack.js";
 import { renderSuperpowersBrief } from "../../frameworks/superpowers.js";
 import { Database } from "../../storage/database.js";
+import { CompileSessionRepository } from "../../storage/compile-session-repository.js";
 import { ProfileRepository } from "../../storage/profile-repository.js";
 import { PromptRepository } from "../../storage/prompt-repository.js";
 
@@ -19,13 +20,24 @@ export async function runCompileCommand(
   const database = new Database(databasePath(globalDataDir(context.homeDir)));
   const promptRepository = new PromptRepository(database);
   const profileRepository = new ProfileRepository(database);
+  const compileSessionRepository = new CompileSessionRepository(database);
 
   try {
     const profile = profileRepository.load("global");
+    const historyMatches = promptRepository.search(rawInput, 3);
     const snippets = retrievePromptSnippets(promptRepository, rawInput);
     const decision = compileOrClarify(rawInput, profile.inferred, snippets);
 
     if (decision.kind === "questions") {
+      compileSessionRepository.save({
+        rawInput,
+        compiledPrompt: "",
+        followUpQuestions: decision.text.split("\n").filter((line) => line.trim().length > 0),
+        resolvedSlots: {},
+        targetFramework: framework,
+        targetHost: "cli",
+        usedHistoryIds: historyMatches.map((row) => row.id)
+      });
       context.stdout(decision.text);
       return 0;
     }
@@ -44,6 +56,16 @@ export async function runCompileCommand(
         : framework === "superpowers"
           ? renderSuperpowersBrief({ rawInput, compiledPrompt: compiled, historySnippets: snippets })
           : renderGstackBrief({ rawInput, compiledPrompt: compiled, historySnippets: snippets });
+
+    compileSessionRepository.save({
+      rawInput,
+      compiledPrompt: output,
+      followUpQuestions: [],
+      resolvedSlots: {},
+      targetFramework: framework,
+      targetHost: "cli",
+      usedHistoryIds: historyMatches.map((row) => row.id)
+    });
 
     context.stdout(output);
     return 0;
