@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync } from "node:fs";
+import { mkdtempSync, mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { runCli } from "../../src/cli/index.js";
@@ -210,4 +210,74 @@ test("runCli preflight returns ask action for low-information input", async () =
   assert.deepEqual(payload.evidence.historyMatches, []);
   assert.equal(payload.evidence.resolvedSlotConfidence.success_criteria, 0.68);
   assert.equal(payload.evidence.resolvedSlotSources.success_criteria, "heuristic");
+});
+
+test("runCli preflight respects project-level confidence threshold overrides", async () => {
+  const root = mkdtempSync(join(tmpdir(), "prompt-skill-project-"));
+  const promptSkillDir = join(root, ".prompt-skill");
+  mkdirSync(promptSkillDir, { recursive: true });
+  writeFileSync(
+    join(promptSkillDir, "config.json"),
+    `${JSON.stringify({
+      enabled: true,
+      mode: "suggest",
+      hostConfidenceThresholds: {
+        codex: 0.6
+      },
+      updatedAt: "2026-04-19T10:00:00.000Z"
+    }, null, 2)}\n`
+  );
+
+  const homeDir = mkdtempSync(join(tmpdir(), "prompt-skill-home-"));
+  const database = new Database(databasePath(globalDataDir(homeDir)));
+  const promptRepository = new PromptRepository(database);
+  const profileRepository = new ProfileRepository(database);
+
+  promptRepository.upsertMany([
+    {
+      id: "codex:history-override-1",
+      tool: "codex",
+      projectPath: root,
+      sessionId: "session-override-1",
+      timestamp: "2026-04-19T10:00:00.000Z",
+      promptText: "优化导入逻辑并保持外部命令行为不变",
+      sourceFile: "/tmp/source.jsonl",
+      sourceOffset: 0,
+      fingerprint: "fp-history-override-1",
+      isFavorite: false,
+      tags: [],
+      importedAt: "2026-04-19T10:00:00.000Z"
+    }
+  ]);
+  profileRepository.save({
+    scope: "global",
+    confirmed: {},
+    inferred: {
+      preferred_language: "zh-CN"
+    },
+    signals: {},
+    updatedAt: "2026-04-19T10:00:00.000Z"
+  });
+  database.close();
+
+  const output: string[] = [];
+  const exitCode = await runCli(["preflight", "优化一下这个导入逻辑", "--host", "codex", "--json"], {
+    cwd: root,
+    homeDir,
+    stdout: (line) => output.push(line),
+    stderr: (line) => output.push(line)
+  });
+
+  const payload = JSON.parse(output.join("\n")) as {
+    action: string;
+    evidence: {
+      lowConfidenceSlots: string[];
+      confidenceThreshold: number;
+    };
+  };
+
+  assert.equal(exitCode, 0);
+  assert.equal(payload.action, "compile");
+  assert.deepEqual(payload.evidence.lowConfidenceSlots, []);
+  assert.equal(payload.evidence.confidenceThreshold, 0.6);
 });

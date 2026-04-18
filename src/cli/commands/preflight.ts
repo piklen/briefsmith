@@ -16,12 +16,6 @@ type PreflightHost = "cli" | "claude" | "codex" | "opencode";
 type Framework = "plain" | "gsd" | "superpowers" | "gstack";
 type PreflightAction = "ask" | "compile" | "skip";
 const SLOT_ORDER: SlotName[] = ["target", "success_criteria", "constraints", "output_format"];
-const HOST_CONFIDENCE_THRESHOLDS: Record<PreflightHost, number> = {
-  cli: 0,
-  claude: 0.65,
-  codex: 0.7,
-  opencode: 0.75
-};
 
 interface PreflightPayload {
   action: PreflightAction;
@@ -57,7 +51,7 @@ export async function runPreflightCommand(args: string[], context: CliContext): 
   }
 
   const policy = await readProjectPolicy(context.cwd);
-  const confidenceThreshold = confidenceThresholdForHost(options.host);
+  const confidenceThreshold = policy.hostConfidenceThresholds[options.host];
   if (!policy.enabled) {
     return outputPayload(
       {
@@ -274,9 +268,6 @@ function findLowConfidenceSlots(
   });
 }
 
-function confidenceThresholdForHost(host: PreflightHost): number {
-  return HOST_CONFIDENCE_THRESHOLDS[host];
-}
 
 function renderForFramework(
   framework: Framework,

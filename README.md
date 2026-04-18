@@ -90,6 +90,21 @@ node dist/src/cli/index.js preflight "优化一下这个导入逻辑" --host cod
 - `codex`: `0.7`
 - `opencode`: `0.75`
 
+可以在项目级策略文件里覆盖：
+
+```json
+{
+  "enabled": true,
+  "mode": "suggest",
+  "hostConfidenceThresholds": {
+    "codex": 0.6,
+    "opencode": 0.8
+  }
+}
+```
+
+`prompt start` / `prompt stop` 只会切换 `enabled` 和 `mode`，不会覆盖你已经设置的 `hostConfidenceThresholds`。
+
 ## 常用命令
 
 ### 检查环境
