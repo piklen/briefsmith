@@ -1,4 +1,5 @@
 import { databasePath, globalDataDir } from "../../config/paths.js";
+import { buildFollowUpQuestions } from "../../compiler/clarifier.js";
 import { readProjectPolicy } from "../../config/project-policy.js";
 import { compileOrClarify } from "../../compiler/compiler.js";
 import { retrievePromptEntries } from "../../compiler/history-retriever.js";
@@ -14,6 +15,13 @@ import { PromptRepository } from "../../storage/prompt-repository.js";
 type PreflightHost = "cli" | "claude" | "codex" | "opencode";
 type Framework = "plain" | "gsd" | "superpowers" | "gstack";
 type PreflightAction = "ask" | "compile" | "skip";
+const SLOT_ORDER: SlotName[] = ["target", "success_criteria", "constraints", "output_format"];
+const HOST_CONFIDENCE_THRESHOLDS: Record<PreflightHost, number> = {
+  cli: 0,
+  claude: 0.65,
+  codex: 0.7,
+  opencode: 0.75
+};
 
 interface PreflightPayload {
   action: PreflightAction;
@@ -28,6 +36,8 @@ interface PreflightPayload {
     policyMode: "off" | "suggest" | "auto-compile";
     initialMissingSlots: SlotName[];
     unresolvedSlots: SlotName[];
+    lowConfidenceSlots: SlotName[];
+    confidenceThreshold: number;
     resolvedSlotSources: Partial<Record<SlotName, SlotResolutionSource>>;
     resolvedSlotConfidence: Partial<Record<SlotName, number>>;
     historyMatchCount: number;
@@ -47,6 +57,7 @@ export async function runPreflightCommand(args: string[], context: CliContext): 
   }
 
   const policy = await readProjectPolicy(context.cwd);
+  const confidenceThreshold = confidenceThresholdForHost(options.host);
   if (!policy.enabled) {
     return outputPayload(
       {
@@ -62,6 +73,8 @@ export async function runPreflightCommand(args: string[], context: CliContext): 
           policyMode: policy.mode,
           initialMissingSlots: [],
           unresolvedSlots: [],
+          lowConfidenceSlots: [],
+          confidenceThreshold,
           resolvedSlotSources: {},
           resolvedSlotConfidence: {},
           historyMatchCount: 0,
@@ -89,12 +102,18 @@ export async function runPreflightCommand(args: string[], context: CliContext): 
     }));
     const decision = compileOrClarify(options.rawInput, profile.inferred, snippets);
     const usedHistoryIds = historyMatches.map((row) => row.id);
+    const lowConfidenceSlots = findLowConfidenceSlots(
+      decision.resolvedSlotConfidence,
+      confidenceThreshold
+    );
+    const askSlots = mergeAskSlots(decision.missing, lowConfidenceSlots);
+    const questions = buildFollowUpQuestions(askSlots);
 
-    if (decision.kind === "questions") {
+    if (askSlots.length > 0) {
       compileSessionRepository.save({
         rawInput: options.rawInput,
         compiledPrompt: "",
-        followUpQuestions: decision.followUpQuestions,
+        followUpQuestions: questions,
         resolvedSlots: decision.resolvedSlots,
         targetFramework: options.framework,
         targetHost: options.host,
@@ -107,7 +126,7 @@ export async function runPreflightCommand(args: string[], context: CliContext): 
           host: options.host,
           framework: options.framework,
           rawInput: options.rawInput,
-          questions: decision.followUpQuestions,
+          questions,
           resolvedSlots: decision.resolvedSlots,
           compiledPrompt: "",
           usedHistoryIds,
@@ -115,6 +134,8 @@ export async function runPreflightCommand(args: string[], context: CliContext): 
             policyMode: policy.mode,
             initialMissingSlots: decision.initialMissing,
             unresolvedSlots: decision.missing,
+            lowConfidenceSlots,
+            confidenceThreshold,
             resolvedSlotSources: decision.resolvedSlotSources,
             resolvedSlotConfidence: decision.resolvedSlotConfidence,
             historyMatchCount: historyMatches.length,
@@ -153,13 +174,15 @@ export async function runPreflightCommand(args: string[], context: CliContext): 
         resolvedSlots: decision.resolvedSlots,
         compiledPrompt,
         usedHistoryIds,
-          evidence: {
-            policyMode: policy.mode,
-            initialMissingSlots: decision.initialMissing,
-            unresolvedSlots: [],
-            resolvedSlotSources: decision.resolvedSlotSources,
-            resolvedSlotConfidence: decision.resolvedSlotConfidence,
-            historyMatchCount: historyMatches.length,
+        evidence: {
+          policyMode: policy.mode,
+          initialMissingSlots: decision.initialMissing,
+          unresolvedSlots: [],
+          lowConfidenceSlots: [],
+          confidenceThreshold,
+          resolvedSlotSources: decision.resolvedSlotSources,
+          resolvedSlotConfidence: decision.resolvedSlotConfidence,
+          historyMatchCount: historyMatches.length,
             historyMatches: historyEvidence
           }
         },
@@ -206,6 +229,8 @@ function renderEvidenceLines(evidence: PreflightPayload["evidence"]): string {
     `- policy_mode: ${evidence.policyMode}`,
     `- initial_missing: ${evidence.initialMissingSlots.join(", ") || "none"}`,
     `- unresolved: ${evidence.unresolvedSlots.join(", ") || "none"}`,
+    `- low_confidence: ${evidence.lowConfidenceSlots.join(", ") || "none"}`,
+    `- confidence_threshold: ${String(evidence.confidenceThreshold)}`,
     `- history_matches: ${String(evidence.historyMatchCount)}`,
     `- history_preview: ${renderHistoryPreviews(evidence.historyMatches)}`,
     `- slot_sources: ${slotSources || "none"}`,
@@ -228,6 +253,29 @@ function buildPromptPreview(text: string, maxLength = 72): string {
   }
 
   return `${normalized.slice(0, maxLength - 1)}…`;
+}
+
+function mergeAskSlots(unresolved: SlotName[], lowConfidence: SlotName[]): SlotName[] {
+  const merged = new Set<SlotName>([...unresolved, ...lowConfidence]);
+  return SLOT_ORDER.filter((slot) => merged.has(slot));
+}
+
+function findLowConfidenceSlots(
+  resolvedSlotConfidence: Partial<Record<SlotName, number>>,
+  threshold: number
+): SlotName[] {
+  if (threshold <= 0) {
+    return [];
+  }
+
+  return SLOT_ORDER.filter((slot) => {
+    const value = resolvedSlotConfidence[slot];
+    return typeof value === "number" && value < threshold;
+  });
+}
+
+function confidenceThresholdForHost(host: PreflightHost): number {
+  return HOST_CONFIDENCE_THRESHOLDS[host];
 }
 
 function renderForFramework(

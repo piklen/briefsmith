@@ -76,10 +76,19 @@ node dist/src/cli/index.js preflight "优化一下这个导入逻辑" --host cod
 - `policyMode`：当前项目策略模式
 - `initialMissingSlots`：最初检测到缺失的槽位
 - `unresolvedSlots`：到 preflight 结束仍未解决的槽位
+- `lowConfidenceSlots`：已自动补全但置信度低于 host 阈值的槽位
+- `confidenceThreshold`：当前 host 使用的追问阈值
 - `resolvedSlotSources`：每个已补全槽位来自 `input / history / heuristic / default`
 - `resolvedSlotConfidence`：每个已补全槽位的置信度，范围 `0-1`
 - `historyMatchCount`：本次命中的历史 prompt 数量
 - `historyMatches`：命中的历史 prompt 摘要数组，包含 `id / tool / preview`
+
+当前默认阈值：
+
+- `cli`: `0`
+- `claude`: `0.65`
+- `codex`: `0.7`
+- `opencode`: `0.75`
 
 ## 常用命令
 
