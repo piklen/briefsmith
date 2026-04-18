@@ -3,11 +3,14 @@ import { doctorClaudeAdapter } from "../../host/claude/doctor.js";
 import { installClaudeAdapter } from "../../host/claude/install.js";
 import { doctorCodexAdapter } from "../../host/codex/doctor.js";
 import { installCodexAdapter } from "../../host/codex/install.js";
+import { doctorOpenCodeAdapter } from "../../host/opencode/doctor.js";
+import { installOpenCodeAdapter } from "../../host/opencode/install.js";
 import type { HostAdapterName, InstallScope } from "../../host/base.js";
 
 const SUPPORTED_ADAPTERS: Array<{ name: HostAdapterName; scopes: InstallScope[] }> = [
   { name: "claude", scopes: ["project", "global"] },
-  { name: "codex", scopes: ["project", "global"] }
+  { name: "codex", scopes: ["project", "global"] },
+  { name: "opencode", scopes: ["project", "global"] }
 ];
 
 export async function runAdaptersCommand(args: string[], context: CliContext): Promise<number> {
@@ -32,11 +35,17 @@ export async function runAdaptersCommand(args: string[], context: CliContext): P
             homeDir: context.homeDir,
             scope
           })
-        : await installCodexAdapter({
-            projectRoot: context.cwd,
-            homeDir: context.homeDir,
-            scope
-          });
+        : name === "codex"
+          ? await installCodexAdapter({
+              projectRoot: context.cwd,
+              homeDir: context.homeDir,
+              scope
+            })
+          : await installOpenCodeAdapter({
+              projectRoot: context.cwd,
+              homeDir: context.homeDir,
+              scope
+            });
 
       context.stdout(`installed ${result.adapter} adapter (${result.scope})`);
       for (const file of result.writtenFiles) {
@@ -54,7 +63,9 @@ export async function runAdaptersCommand(args: string[], context: CliContext): P
       for (const target of targets) {
         const result = target === "claude"
           ? await doctorClaudeAdapter(context.cwd, context.homeDir, scope)
-          : await doctorCodexAdapter(context.cwd, context.homeDir, scope);
+          : target === "codex"
+            ? await doctorCodexAdapter(context.cwd, context.homeDir, scope)
+            : await doctorOpenCodeAdapter(context.cwd, context.homeDir, scope);
 
         context.stdout(`[${result.status}] ${result.adapter} (${result.scope})`);
         for (const check of result.checks) {
@@ -80,5 +91,5 @@ function parseScope(args: string[]): InstallScope | null {
 }
 
 function isAdapterName(value: string): value is HostAdapterName {
-  return value === "claude" || value === "codex";
+  return value === "claude" || value === "codex" || value === "opencode";
 }

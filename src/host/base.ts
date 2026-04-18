@@ -1,4 +1,4 @@
-export type HostAdapterName = "claude" | "codex";
+export type HostAdapterName = "claude" | "codex" | "opencode";
 export type InstallScope = "project" | "global";
 
 export interface HostInstallOptions {

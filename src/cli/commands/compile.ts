@@ -1,7 +1,7 @@
 import { databasePath, globalDataDir } from "../../config/paths.js";
 import type { CliContext } from "../../core/types.js";
 import { compileOrClarify } from "../../compiler/compiler.js";
-import { retrievePromptEntries, retrievePromptSnippets } from "../../compiler/history-retriever.js";
+import { retrievePromptEntries } from "../../compiler/history-retriever.js";
 import { renderGsdContext } from "../../frameworks/gsd.js";
 import { renderGstackBrief } from "../../frameworks/gstack.js";
 import { renderSuperpowersBrief } from "../../frameworks/superpowers.js";

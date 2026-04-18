@@ -20,7 +20,8 @@ test("installCodexAdapter writes a managed AGENTS block without overwriting exis
   const agents = readFileSync(join(root, "AGENTS.md"), "utf8");
   assert.equal(agents.includes("# Existing Rules"), true);
   assert.equal(agents.includes("prompt-skill:start"), true);
-  assert.equal(agents.includes("node dist/src/cli/index.js compile"), true);
+  assert.equal(agents.includes("node dist/src/cli/index.js preflight"), true);
+  assert.equal(agents.includes("--host codex"), true);
 });
 
 test("installCodexAdapter can install a global skill template", async () => {

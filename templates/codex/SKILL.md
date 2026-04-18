@@ -14,5 +14,7 @@ description: Use when the user request is vague, references prior prompts, or wo
 ## What to Do
 
 1. Use `node dist/src/cli/index.js find "<query>"` to search prompt history.
-2. Use `node dist/src/cli/index.js compile "<raw input>"` when the request is vague.
-3. Ask follow-up questions only when the missing information changes execution quality.
+2. Use `node dist/src/cli/index.js preflight "<raw input>" --host codex --json` when the request is vague.
+3. If `action` is `ask`, ask the returned questions before executing.
+4. If `action` is `compile`, use `compiledPrompt` as additional task context before executing.
+5. Ask follow-up questions only when the missing information changes execution quality.

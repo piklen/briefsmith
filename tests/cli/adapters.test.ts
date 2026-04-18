@@ -14,4 +14,5 @@ test("runCli lists supported adapters", async () => {
   assert.equal(exitCode, 0);
   assert.equal(output.some((line) => line.includes("claude")), true);
   assert.equal(output.some((line) => line.includes("codex")), true);
+  assert.equal(output.some((line) => line.includes("opencode")), true);
 });

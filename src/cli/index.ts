@@ -10,6 +10,7 @@ import { runFavoritesCommand } from "./commands/favorites.js";
 import { runFindCommand } from "./commands/find.js";
 import { runImportCommand } from "./commands/import.js";
 import { runPolicyCommand } from "./commands/policy.js";
+import { runPreflightCommand } from "./commands/preflight.js";
 import { runProfileRefreshCommand, runProfileShowCommand } from "./commands/profile.js";
 import { runReindexCommand } from "./commands/reindex.js";
 import { runShowCommand } from "./commands/show.js";
@@ -28,6 +29,7 @@ const helpLines = [
   "prompt tags remove <id> <tag>",
   "prompt tags list <id>",
   'prompt compile "<raw input>" [--framework plain|gsd|superpowers|gstack]',
+  'prompt preflight "<raw input>" [--host cli|claude|codex|opencode] [--json] [--framework plain|gsd|superpowers|gstack]',
   "prompt compile latest",
   "prompt compile history",
   "prompt compile show <id>",
@@ -97,6 +99,8 @@ export async function runCli(args: string[], partialContext?: Partial<CliContext
       }
       return runCompileCommand(inputParts.join(" "), context, framework as "plain" | "gsd" | "superpowers" | "gstack");
     }
+    case "preflight":
+      return runPreflightCommand(rest, context);
     case "profile":
       if (rest[0] === "show") {
         return runProfileShowCommand(context);
