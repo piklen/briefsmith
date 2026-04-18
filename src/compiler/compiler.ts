@@ -65,6 +65,10 @@ const GENERIC_TARGETS = new Set([
   "问题",
   "东西"
 ]);
+const INPUT_CONFIDENCE = 0.96;
+const HISTORY_CONFIDENCE = 0.82;
+const HEURISTIC_CONFIDENCE = 0.68;
+const DEFAULT_CONFIDENCE = 0.55;
 
 export function compilePrompt(input: CompilePromptInput): string {
   const defaults = Object.entries(input.inferredDefaults)
@@ -121,6 +125,7 @@ export function compileOrClarify(
       initialMissing: missingResult.missing,
       resolvedSlots,
       resolvedSlotSources: resolution.sources,
+      resolvedSlotConfidence: resolution.confidence,
       followUpQuestions
     };
   }
@@ -139,6 +144,7 @@ export function compileOrClarify(
     initialMissing: missingResult.missing,
     resolvedSlots,
     resolvedSlotSources: resolution.sources,
+    resolvedSlotConfidence: resolution.confidence,
     followUpQuestions: []
   };
 }
@@ -151,9 +157,11 @@ function resolveMissingSlots(
 ): {
   values: Partial<Record<SlotName, string>>;
   sources: Partial<Record<SlotName, SlotResolutionSource>>;
+  confidence: Partial<Record<SlotName, number>>;
 } {
   const values: Partial<Record<SlotName, string>> = {};
   const sources: Partial<Record<SlotName, SlotResolutionSource>> = {};
+  const confidence: Partial<Record<SlotName, number>> = {};
 
   for (const slot of missing) {
     if (slot === "target") {
@@ -161,6 +169,7 @@ function resolveMissingSlots(
       if (target) {
         values.target = target.value;
         sources.target = target.source;
+        confidence.target = target.confidence;
       }
       continue;
     }
@@ -170,6 +179,7 @@ function resolveMissingSlots(
       if (success) {
         values.success_criteria = success.value;
         sources.success_criteria = success.source;
+        confidence.success_criteria = success.confidence;
       }
       continue;
     }
@@ -179,6 +189,7 @@ function resolveMissingSlots(
       if (constraint) {
         values.constraints = constraint.value;
         sources.constraints = constraint.source;
+        confidence.constraints = constraint.confidence;
       }
       continue;
     }
@@ -188,22 +199,25 @@ function resolveMissingSlots(
         ? "结构化任务说明"
         : "Structured task brief";
       sources.output_format = "default";
+      confidence.output_format = DEFAULT_CONFIDENCE;
     }
   }
 
-  return { values, sources };
+  return { values, sources, confidence };
 }
 
 function shouldAskFollowUp(unresolved: SlotName[]): boolean {
   return unresolved.includes("target") || unresolved.length >= 2;
 }
 
-function inferTarget(rawInput: string): { value: string; source: SlotResolutionSource } | null {
+function inferTarget(
+  rawInput: string
+): { value: string; source: SlotResolutionSource; confidence: number } | null {
   for (const pattern of CHINESE_TARGET_PATTERNS) {
     const match = rawInput.match(pattern);
     const candidate = normalizeCandidate(match?.[1]);
     if (candidate && !GENERIC_TARGETS.has(candidate.toLowerCase())) {
-      return { value: candidate, source: "input" };
+      return { value: candidate, source: "input", confidence: INPUT_CONFIDENCE };
     }
   }
 
@@ -211,7 +225,7 @@ function inferTarget(rawInput: string): { value: string; source: SlotResolutionS
     const match = rawInput.match(pattern);
     const candidate = normalizeCandidate(match?.[1]);
     if (candidate && !GENERIC_TARGETS.has(candidate.toLowerCase())) {
-      return { value: candidate, source: "input" };
+      return { value: candidate, source: "input", confidence: INPUT_CONFIDENCE };
     }
   }
 
@@ -221,14 +235,15 @@ function inferTarget(rawInput: string): { value: string; source: SlotResolutionS
 function inferSuccessCriteria(
   rawInput: string,
   inferredDefaults: Record<string, unknown>
-): { value: string; source: SlotResolutionSource } | null {
+): { value: string; source: SlotResolutionSource; confidence: number } | null {
   const useChinese = prefersChinese(rawInput, inferredDefaults);
 
   for (const hint of SUCCESS_HINTS) {
     if (hint.pattern.test(rawInput)) {
       return {
         value: useChinese ? hint.zh : hint.en,
-        source: "heuristic"
+        source: "heuristic",
+        confidence: HEURISTIC_CONFIDENCE
       };
     }
   }
@@ -239,16 +254,16 @@ function inferSuccessCriteria(
 function inferConstraint(
   rawInput: string,
   retrievedPromptSnippets: string[]
-): { value: string; source: SlotResolutionSource } | null {
+): { value: string; source: SlotResolutionSource; confidence: number } | null {
   const direct = extractConstraint(rawInput);
   if (direct) {
-    return { value: direct, source: "input" };
+    return { value: direct, source: "input", confidence: INPUT_CONFIDENCE };
   }
 
   for (const snippet of retrievedPromptSnippets) {
     const fromHistory = extractConstraint(snippet);
     if (fromHistory) {
-      return { value: fromHistory, source: "history" };
+      return { value: fromHistory, source: "history", confidence: HISTORY_CONFIDENCE };
     }
   }
 

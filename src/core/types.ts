@@ -57,6 +57,7 @@ export interface CompileDecision {
   initialMissing: SlotName[];
   resolvedSlots: Partial<Record<SlotName, string>>;
   resolvedSlotSources: Partial<Record<SlotName, SlotResolutionSource>>;
+  resolvedSlotConfidence: Partial<Record<SlotName, number>>;
   followUpQuestions: string[];
 }
 

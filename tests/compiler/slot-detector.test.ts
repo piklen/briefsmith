@@ -50,4 +50,7 @@ test("compileOrClarify auto-fills high-confidence optimize requests", () => {
   assert.equal(result.resolvedSlots.target?.includes("导入逻辑"), true);
   assert.equal(result.resolvedSlots.constraints?.includes("外部行为"), true);
   assert.equal(result.resolvedSlots.success_criteria?.length ? true : false, true);
+  assert.equal(result.resolvedSlotConfidence.target, 0.96);
+  assert.equal(result.resolvedSlotConfidence.success_criteria, 0.68);
+  assert.equal(result.resolvedSlotConfidence.constraints, 0.82);
 });

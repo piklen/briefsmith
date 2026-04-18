@@ -29,6 +29,7 @@ interface PreflightPayload {
     initialMissingSlots: SlotName[];
     unresolvedSlots: SlotName[];
     resolvedSlotSources: Partial<Record<SlotName, SlotResolutionSource>>;
+    resolvedSlotConfidence: Partial<Record<SlotName, number>>;
     historyMatchCount: number;
     historyMatches: Array<{
       id: string;
@@ -62,6 +63,7 @@ export async function runPreflightCommand(args: string[], context: CliContext): 
           initialMissingSlots: [],
           unresolvedSlots: [],
           resolvedSlotSources: {},
+          resolvedSlotConfidence: {},
           historyMatchCount: 0,
           historyMatches: []
         }
@@ -114,6 +116,7 @@ export async function runPreflightCommand(args: string[], context: CliContext): 
             initialMissingSlots: decision.initialMissing,
             unresolvedSlots: decision.missing,
             resolvedSlotSources: decision.resolvedSlotSources,
+            resolvedSlotConfidence: decision.resolvedSlotConfidence,
             historyMatchCount: historyMatches.length,
             historyMatches: historyEvidence
           }
@@ -155,6 +158,7 @@ export async function runPreflightCommand(args: string[], context: CliContext): 
             initialMissingSlots: decision.initialMissing,
             unresolvedSlots: [],
             resolvedSlotSources: decision.resolvedSlotSources,
+            resolvedSlotConfidence: decision.resolvedSlotConfidence,
             historyMatchCount: historyMatches.length,
             historyMatches: historyEvidence
           }
@@ -193,6 +197,9 @@ function renderEvidenceLines(evidence: PreflightPayload["evidence"]): string {
   const slotSources = Object.entries(evidence.resolvedSlotSources)
     .map(([slot, source]) => `${slot}=${source}`)
     .join(", ");
+  const slotConfidence = Object.entries(evidence.resolvedSlotConfidence)
+    .map(([slot, value]) => `${slot}=${value.toFixed(2)}`)
+    .join(", ");
 
   return [
     "Prompt Skill Evidence",
@@ -201,7 +208,8 @@ function renderEvidenceLines(evidence: PreflightPayload["evidence"]): string {
     `- unresolved: ${evidence.unresolvedSlots.join(", ") || "none"}`,
     `- history_matches: ${String(evidence.historyMatchCount)}`,
     `- history_preview: ${renderHistoryPreviews(evidence.historyMatches)}`,
-    `- slot_sources: ${slotSources || "none"}`
+    `- slot_sources: ${slotSources || "none"}`,
+    `- slot_confidence: ${slotConfidence || "none"}`
   ].join("\n");
 }
 

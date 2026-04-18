@@ -62,6 +62,7 @@ test("runCli preflight emits host JSON and persists the compile session", async 
       unresolvedSlots: string[];
       historyMatchCount: number;
       resolvedSlotSources: Record<string, string>;
+      resolvedSlotConfidence: Record<string, number>;
       historyMatches: Array<{
         id: string;
         tool: string;
@@ -88,6 +89,9 @@ test("runCli preflight emits host JSON and persists the compile session", async 
       preview: "优化导入逻辑并保持外部命令行为不变"
     }
   ]);
+  assert.equal(payload.evidence.resolvedSlotConfidence.target, 0.96);
+  assert.equal(payload.evidence.resolvedSlotConfidence.success_criteria, 0.68);
+  assert.equal(payload.evidence.resolvedSlotConfidence.constraints, 0.82);
   assert.equal(payload.evidence.resolvedSlotSources.target, "input");
   assert.equal(payload.evidence.resolvedSlotSources.success_criteria, "heuristic");
   assert.equal(payload.evidence.resolvedSlotSources.constraints, "history");
@@ -115,6 +119,7 @@ test("runCli preflight returns ask action for low-information input", async () =
       unresolvedSlots: string[];
       historyMatchCount: number;
       resolvedSlotSources: Record<string, string>;
+      resolvedSlotConfidence: Record<string, number>;
       historyMatches: Array<{
         id: string;
         tool: string;
@@ -131,5 +136,6 @@ test("runCli preflight returns ask action for low-information input", async () =
   assert.deepEqual(payload.evidence.unresolvedSlots, ["target", "constraints"]);
   assert.equal(payload.evidence.historyMatchCount, 0);
   assert.deepEqual(payload.evidence.historyMatches, []);
+  assert.equal(payload.evidence.resolvedSlotConfidence.success_criteria, 0.68);
   assert.equal(payload.evidence.resolvedSlotSources.success_criteria, "heuristic");
 });
