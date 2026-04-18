@@ -1,0 +1,2 @@
+{"type":"meta","sessionId":"claude-session-1","permissionMode":"acceptEdits"}
+{"parentUuid":"root","uuid":"u1","sessionId":"claude-session-1","timestamp":"2026-04-18T10:00:00.000Z","cwd":"/tmp/project","gitBranch":"main","type":"user","message":{"role":"user","content":"Please optimize this function for readability."},"userType":"external"}

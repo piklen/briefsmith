@@ -1,5 +1,10 @@
 # Prompt Collector Phase A Implementation Plan
 
+> **状态：已被新的 skill-first 方案取代。**
+>
+> 这份计划保留为早期菜单栏应用实现记录。当前有效计划见：
+> `docs/superpowers/plans/2026-04-18-prompt-skill-runtime-v1.md`
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Build a local macOS menu bar app that imports historical prompts from Codex, Claude Code, Gemini CLI, and OpenCode, keeps syncing new prompts in the background, stores normalized records in SQLite, and exposes status plus repair hints from the menu bar.

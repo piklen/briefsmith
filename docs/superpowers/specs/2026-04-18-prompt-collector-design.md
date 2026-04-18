@@ -1,5 +1,10 @@
 # 本地 AI Prompt 采集菜单栏应用设计
 
+> **状态：已被新的 skill-first 方案取代。**
+>
+> 这份文档保留为早期思路记录。当前有效方案见：
+> `docs/superpowers/specs/2026-04-18-prompt-skill-runtime-design.md`
+
 ## 1. 目标
 
 构建一个**本地自用、非沙箱**的 macOS 菜单栏应用，自动收集本机上 `Codex`、`Claude`、`Gemini`、`OpenCode` 等 AI 工具中，**用户发给 AI 的每一次 prompt 原文**，并按以下层级组织：

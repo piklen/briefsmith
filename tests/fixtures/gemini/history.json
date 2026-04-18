@@ -1,0 +1,11 @@
+{
+  "session_id": "gemini-session-1",
+  "cwd": "/tmp/gemini-project",
+  "messages": [
+    {
+      "role": "user",
+      "timestamp": "2026-04-18T12:00:00.000Z",
+      "text": "Please write a deployment checklist for this service."
+    }
+  ]
+}
