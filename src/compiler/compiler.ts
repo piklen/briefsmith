@@ -1,4 +1,4 @@
-import type { CompileDecision, CompilePromptInput, SlotName } from "../core/types.js";
+import type { CompileDecision, CompilePromptInput, SlotName, SlotResolutionSource } from "../core/types.js";
 import { buildFollowUpQuestions } from "./clarifier.js";
 import { detectMissingSlots } from "./slot-detector.js";
 
@@ -103,12 +103,13 @@ export function compileOrClarify(
   retrievedPromptSnippets: string[]
 ): CompileDecision {
   const missingResult = detectMissingSlots(rawInput);
-  const resolvedSlots = resolveMissingSlots(
+  const resolution = resolveMissingSlots(
     rawInput,
     missingResult.missing,
     inferredDefaults,
     retrievedPromptSnippets
   );
+  const resolvedSlots = resolution.values;
   const unresolved = missingResult.missing.filter((slot) => !resolvedSlots[slot]);
   const followUpQuestions = buildFollowUpQuestions(unresolved);
 
@@ -117,7 +118,9 @@ export function compileOrClarify(
       kind: "questions",
       text: followUpQuestions.join("\n"),
       missing: unresolved,
+      initialMissing: missingResult.missing,
       resolvedSlots,
+      resolvedSlotSources: resolution.sources,
       followUpQuestions
     };
   }
@@ -133,7 +136,9 @@ export function compileOrClarify(
     kind: "compiled",
     text: compiled,
     missing: [],
+    initialMissing: missingResult.missing,
     resolvedSlots,
+    resolvedSlotSources: resolution.sources,
     followUpQuestions: []
   };
 }
@@ -143,14 +148,19 @@ function resolveMissingSlots(
   missing: SlotName[],
   inferredDefaults: Record<string, unknown>,
   retrievedPromptSnippets: string[]
-): Partial<Record<SlotName, string>> {
-  const resolved: Partial<Record<SlotName, string>> = {};
+): {
+  values: Partial<Record<SlotName, string>>;
+  sources: Partial<Record<SlotName, SlotResolutionSource>>;
+} {
+  const values: Partial<Record<SlotName, string>> = {};
+  const sources: Partial<Record<SlotName, SlotResolutionSource>> = {};
 
   for (const slot of missing) {
     if (slot === "target") {
       const target = inferTarget(rawInput);
       if (target) {
-        resolved.target = target;
+        values.target = target.value;
+        sources.target = target.source;
       }
       continue;
     }
@@ -158,7 +168,8 @@ function resolveMissingSlots(
     if (slot === "success_criteria") {
       const success = inferSuccessCriteria(rawInput, inferredDefaults);
       if (success) {
-        resolved.success_criteria = success;
+        values.success_criteria = success.value;
+        sources.success_criteria = success.source;
       }
       continue;
     }
@@ -166,31 +177,33 @@ function resolveMissingSlots(
     if (slot === "constraints") {
       const constraint = inferConstraint(rawInput, retrievedPromptSnippets);
       if (constraint) {
-        resolved.constraints = constraint;
+        values.constraints = constraint.value;
+        sources.constraints = constraint.source;
       }
       continue;
     }
 
     if (slot === "output_format") {
-      resolved.output_format = prefersChinese(rawInput, inferredDefaults)
+      values.output_format = prefersChinese(rawInput, inferredDefaults)
         ? "结构化任务说明"
         : "Structured task brief";
+      sources.output_format = "default";
     }
   }
 
-  return resolved;
+  return { values, sources };
 }
 
 function shouldAskFollowUp(unresolved: SlotName[]): boolean {
   return unresolved.includes("target") || unresolved.length >= 2;
 }
 
-function inferTarget(rawInput: string): string | null {
+function inferTarget(rawInput: string): { value: string; source: SlotResolutionSource } | null {
   for (const pattern of CHINESE_TARGET_PATTERNS) {
     const match = rawInput.match(pattern);
     const candidate = normalizeCandidate(match?.[1]);
     if (candidate && !GENERIC_TARGETS.has(candidate.toLowerCase())) {
-      return candidate;
+      return { value: candidate, source: "input" };
     }
   }
 
@@ -198,7 +211,7 @@ function inferTarget(rawInput: string): string | null {
     const match = rawInput.match(pattern);
     const candidate = normalizeCandidate(match?.[1]);
     if (candidate && !GENERIC_TARGETS.has(candidate.toLowerCase())) {
-      return candidate;
+      return { value: candidate, source: "input" };
     }
   }
 
@@ -208,28 +221,34 @@ function inferTarget(rawInput: string): string | null {
 function inferSuccessCriteria(
   rawInput: string,
   inferredDefaults: Record<string, unknown>
-): string | null {
+): { value: string; source: SlotResolutionSource } | null {
   const useChinese = prefersChinese(rawInput, inferredDefaults);
 
   for (const hint of SUCCESS_HINTS) {
     if (hint.pattern.test(rawInput)) {
-      return useChinese ? hint.zh : hint.en;
+      return {
+        value: useChinese ? hint.zh : hint.en,
+        source: "heuristic"
+      };
     }
   }
 
   return null;
 }
 
-function inferConstraint(rawInput: string, retrievedPromptSnippets: string[]): string | null {
+function inferConstraint(
+  rawInput: string,
+  retrievedPromptSnippets: string[]
+): { value: string; source: SlotResolutionSource } | null {
   const direct = extractConstraint(rawInput);
   if (direct) {
-    return direct;
+    return { value: direct, source: "input" };
   }
 
   for (const snippet of retrievedPromptSnippets) {
     const fromHistory = extractConstraint(snippet);
     if (fromHistory) {
-      return fromHistory;
+      return { value: fromHistory, source: "history" };
     }
   }
 

@@ -2,7 +2,7 @@ import { databasePath, globalDataDir } from "../../config/paths.js";
 import { readProjectPolicy } from "../../config/project-policy.js";
 import { compileOrClarify } from "../../compiler/compiler.js";
 import { retrievePromptEntries } from "../../compiler/history-retriever.js";
-import type { CliContext, SlotName } from "../../core/types.js";
+import type { CliContext, SlotName, SlotResolutionSource } from "../../core/types.js";
 import { renderGsdContext } from "../../frameworks/gsd.js";
 import { renderGstackBrief } from "../../frameworks/gstack.js";
 import { renderSuperpowersBrief } from "../../frameworks/superpowers.js";
@@ -24,6 +24,13 @@ interface PreflightPayload {
   resolvedSlots: Partial<Record<SlotName, string>>;
   compiledPrompt: string;
   usedHistoryIds: string[];
+  evidence: {
+    policyMode: "off" | "suggest" | "auto-compile";
+    initialMissingSlots: SlotName[];
+    unresolvedSlots: SlotName[];
+    resolvedSlotSources: Partial<Record<SlotName, SlotResolutionSource>>;
+    historyMatchCount: number;
+  };
 }
 
 export async function runPreflightCommand(args: string[], context: CliContext): Promise<number> {
@@ -44,7 +51,14 @@ export async function runPreflightCommand(args: string[], context: CliContext): 
         questions: [],
         resolvedSlots: {},
         compiledPrompt: "",
-        usedHistoryIds: []
+        usedHistoryIds: [],
+        evidence: {
+          policyMode: policy.mode,
+          initialMissingSlots: [],
+          unresolvedSlots: [],
+          resolvedSlotSources: {},
+          historyMatchCount: 0
+        }
       },
       options.json,
       context
@@ -83,7 +97,14 @@ export async function runPreflightCommand(args: string[], context: CliContext): 
           questions: decision.followUpQuestions,
           resolvedSlots: decision.resolvedSlots,
           compiledPrompt: "",
-          usedHistoryIds
+          usedHistoryIds,
+          evidence: {
+            policyMode: policy.mode,
+            initialMissingSlots: decision.initialMissing,
+            unresolvedSlots: decision.missing,
+            resolvedSlotSources: decision.resolvedSlotSources,
+            historyMatchCount: historyMatches.length
+          }
         },
         options.json,
         context
@@ -116,7 +137,14 @@ export async function runPreflightCommand(args: string[], context: CliContext): 
         questions: [],
         resolvedSlots: decision.resolvedSlots,
         compiledPrompt,
-        usedHistoryIds
+        usedHistoryIds,
+        evidence: {
+          policyMode: policy.mode,
+          initialMissingSlots: decision.initialMissing,
+          unresolvedSlots: [],
+          resolvedSlotSources: decision.resolvedSlotSources,
+          historyMatchCount: historyMatches.length
+        }
       },
       options.json,
       context
@@ -139,11 +167,28 @@ function outputPayload(payload: PreflightPayload, json: boolean, context: CliCon
 
   if (payload.action === "ask") {
     context.stdout(`Prompt Skill needs more context:\n- ${payload.questions.join("\n- ")}`);
+    context.stdout(renderEvidenceLines(payload.evidence));
     return 0;
   }
 
   context.stdout(`Prompt Skill Context\n${payload.compiledPrompt}`);
+  context.stdout(renderEvidenceLines(payload.evidence));
   return 0;
+}
+
+function renderEvidenceLines(evidence: PreflightPayload["evidence"]): string {
+  const slotSources = Object.entries(evidence.resolvedSlotSources)
+    .map(([slot, source]) => `${slot}=${source}`)
+    .join(", ");
+
+  return [
+    "Prompt Skill Evidence",
+    `- policy_mode: ${evidence.policyMode}`,
+    `- initial_missing: ${evidence.initialMissingSlots.join(", ") || "none"}`,
+    `- unresolved: ${evidence.unresolvedSlots.join(", ") || "none"}`,
+    `- history_matches: ${String(evidence.historyMatchCount)}`,
+    `- slot_sources: ${slotSources || "none"}`
+  ].join("\n");
 }
 
 function renderForFramework(

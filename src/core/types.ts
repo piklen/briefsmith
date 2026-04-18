@@ -6,6 +6,8 @@ export type SlotName =
   | "constraints"
   | "output_format";
 
+export type SlotResolutionSource = "input" | "history" | "heuristic" | "default";
+
 export interface CliContext {
   cwd: string;
   homeDir: string;
@@ -52,7 +54,9 @@ export interface CompileDecision {
   kind: "questions" | "compiled";
   text: string;
   missing: SlotName[];
+  initialMissing: SlotName[];
   resolvedSlots: Partial<Record<SlotName, string>>;
+  resolvedSlotSources: Partial<Record<SlotName, SlotResolutionSource>>;
   followUpQuestions: string[];
 }
 

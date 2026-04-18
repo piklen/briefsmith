@@ -71,6 +71,14 @@ node dist/src/cli/index.js preflight "优化一下这个导入逻辑" --host cod
 - `compile`：信息足够，使用 `compiledPrompt` 作为执行前上下文。
 - `skip`：当前项目已通过 `prompt stop` 关闭 prompt 检查。
 
+同时会返回 `evidence`，用于解释这次判断为什么成立：
+
+- `policyMode`：当前项目策略模式
+- `initialMissingSlots`：最初检测到缺失的槽位
+- `unresolvedSlots`：到 preflight 结束仍未解决的槽位
+- `resolvedSlotSources`：每个已补全槽位来自 `input / history / heuristic / default`
+- `historyMatchCount`：本次命中的历史 prompt 数量
+
 ## 常用命令
 
 ### 检查环境
@@ -140,6 +148,15 @@ node dist/src/cli/index.js preflight "优化一下这个导入逻辑" --host ope
 ```
 
 `preflight` 是给 Codex / OpenCode / 其他 host adapter 使用的稳定入口。它会先检查项目策略，再检索历史 prompt、读取用户 profile，并决定是追问还是生成可执行上下文。
+
+如果你在接 host adapter，推荐直接消费 JSON 输出里的这几个字段：
+
+- `action`
+- `questions`
+- `compiledPrompt`
+- `resolvedSlots`
+- `usedHistoryIds`
+- `evidence`
 
 ### 查看 compile 历史
 
