@@ -5,6 +5,7 @@ import type { CliContext } from "../core/types.js";
 import { createCliContext } from "./support.js";
 import { runCompileCommand } from "./commands/compile.js";
 import { runDoctorCommand } from "./commands/doctor.js";
+import { runAdaptersCommand } from "./commands/adapters.js";
 import { runFindCommand } from "./commands/find.js";
 import { runImportCommand } from "./commands/import.js";
 import { runPolicyCommand } from "./commands/policy.js";
@@ -26,6 +27,9 @@ const helpLines = [
   "prompt start",
   "prompt stop",
   "prompt doctor"
+  ,"prompt adapters list"
+  ,"prompt adapters install <claude|codex> [--scope project|global]"
+  ,"prompt adapters doctor [claude|codex] [--scope project|global]"
 ];
 
 export async function runCli(args: string[], partialContext?: Partial<CliContext>): Promise<number> {
@@ -88,6 +92,8 @@ export async function runCli(args: string[], partialContext?: Partial<CliContext
       return runPolicyCommand(command, context);
     case "doctor":
       return runDoctorCommand(context);
+    case "adapters":
+      return runAdaptersCommand(rest, context);
     default:
       context.stderr(`Unknown command: ${command}`);
       return 1;
