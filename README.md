@@ -25,7 +25,7 @@ Briefsmith uses repo-local prompt history, recent same-repo compile sessions, in
 
 For automatic enrichment, Briefsmith scopes history to the current repo by default so one project's meta prompts do not leak into another project's request.
 
-Continuation-style requests such as `continue optimizing` or `继续优化` can also reuse the latest same-repo compile session before Briefsmith decides whether to ask or compile.
+Continuation-style requests such as `continue optimizing` or `继续优化` reuse the latest same-repo compile session first; Briefsmith does not mix in raw prompt-history matches unless the new request carries fresh task detail.
 
 ## What Briefsmith Tries To Resolve
 

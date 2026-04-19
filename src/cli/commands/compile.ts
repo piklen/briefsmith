@@ -1,7 +1,7 @@
 import { databasePath, globalDataDir } from "../../config/paths.js";
 import type { CliContext } from "../../core/types.js";
 import { compileOrClarify } from "../../compiler/compiler.js";
-import { isContinuationOnlyRequest } from "../../compiler/continuation.js";
+import { isContinuationOnlyRequest, shouldUseHistoryEnrichment } from "../../compiler/continuation.js";
 import { retrievePromptEntries } from "../../compiler/history-retriever.js";
 import { renderGsdContext } from "../../frameworks/gsd.js";
 import { renderGstackBrief } from "../../frameworks/gstack.js";
@@ -29,9 +29,11 @@ export async function runCompileCommand(
     const continuationSlots = isContinuationOnlyRequest(rawInput)
       ? (compileSessionRepository.latestForProject(context.cwd)?.resolvedSlots ?? {})
       : {};
-    const historyMatches = retrievePromptEntries(promptRepository, rawInput, 3, {
-      projectPath: context.cwd
-    });
+    const historyMatches = shouldUseHistoryEnrichment(rawInput)
+      ? retrievePromptEntries(promptRepository, rawInput, 3, {
+          projectPath: context.cwd
+        })
+      : [];
     const snippets = historyMatches.map((row) => row.promptText);
     const decision = compileOrClarify(rawInput, profile.inferred, snippets, continuationSlots);
 

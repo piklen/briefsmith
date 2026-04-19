@@ -370,6 +370,24 @@ test("runCli preflight reuses the latest same-project compile session for contin
   const homeDir = mkdtempSync(join(tmpdir(), "prompt-skill-home-"));
   const database = new Database(databasePath(globalDataDir(homeDir)));
   const compileSessionRepository = new CompileSessionRepository(database);
+  const promptRepository = new PromptRepository(database);
+
+  promptRepository.upsertMany([
+    {
+      id: "codex:continuation-history-1",
+      tool: "codex",
+      projectPath: root,
+      sessionId: "session-continuation-1",
+      timestamp: "2026-04-19T10:00:00.000Z",
+      promptText: "继续优化",
+      sourceFile: "/tmp/source.jsonl",
+      sourceOffset: 0,
+      fingerprint: "fp-continuation-history-1",
+      isFavorite: false,
+      tags: [],
+      importedAt: "2026-04-19T10:00:00.000Z"
+    }
+  ]);
 
   compileSessionRepository.save({
     rawInput: "优化这个导入逻辑，保持外部命令行为不变，并运行相关测试验证",
@@ -398,7 +416,9 @@ test("runCli preflight reuses the latest same-project compile session for contin
   const payload = JSON.parse(output.join("\n")) as {
     action: string;
     resolvedSlots: Record<string, string>;
+    usedHistoryIds: string[];
     evidence: {
+      historyMatchCount: number;
       resolvedSlotSources: Record<string, string>;
     };
   };
@@ -408,6 +428,8 @@ test("runCli preflight reuses the latest same-project compile session for contin
   assert.equal(payload.resolvedSlots.target, "导入逻辑");
   assert.equal(payload.resolvedSlots.constraints, "不要改变外部命令行为");
   assert.equal(payload.resolvedSlots.verification, "运行相关测试验证");
+  assert.deepEqual(payload.usedHistoryIds, []);
+  assert.equal(payload.evidence.historyMatchCount, 0);
   assert.equal(payload.evidence.resolvedSlotSources.target, "session");
   assert.equal(payload.evidence.resolvedSlotSources.constraints, "session");
   assert.equal(payload.evidence.resolvedSlotSources.verification, "session");

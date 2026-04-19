@@ -252,6 +252,10 @@ test("evaluateClaudePromptHook reuses the latest same-project compile session fo
       result?.hookSpecificOutput?.additionalContext?.includes("不要改变外部命令行为") ?? false,
       true
     );
+    assert.equal(
+      result?.hookSpecificOutput?.additionalContext?.includes("Relevant Prompt Memory\n- none") ?? false,
+      true
+    );
   } finally {
     database.close();
   }

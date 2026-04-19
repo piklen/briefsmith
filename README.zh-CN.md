@@ -25,7 +25,7 @@ Briefsmith 的作用，是在真正动手前，优先用当前仓库历史、同
 
 在自动补槽时，Briefsmith 默认只拿当前仓库的历史做增强，避免 A 仓库里的 meta prompt 污染 B 仓库里的真实请求。
 
-像 `继续优化`、`continue optimizing` 这种 continuation 风格请求，也会优先尝试复用同仓库最近一次 compile session 的已解析槽位，再决定是 ask 还是 compile。
+像 `继续优化`、`continue optimizing` 这种 continuation 风格请求，会先复用同仓库最近一次 compile session 的已解析槽位；如果这次输入没有提供新的任务细节，Briefsmith 不会再混入原始 prompt-history 命中。
 
 ## Briefsmith 会优先补哪些信息
 

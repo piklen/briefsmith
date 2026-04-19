@@ -2,7 +2,7 @@ import { databasePath, globalDataDir } from "../../config/paths.js";
 import { buildFollowUpQuestions } from "../../compiler/clarifier.js";
 import { readProjectPolicy } from "../../config/project-policy.js";
 import { compileOrClarify } from "../../compiler/compiler.js";
-import { isContinuationOnlyRequest } from "../../compiler/continuation.js";
+import { isContinuationOnlyRequest, shouldUseHistoryEnrichment } from "../../compiler/continuation.js";
 import { retrievePromptEntries } from "../../compiler/history-retriever.js";
 import type { CliContext, SlotName, SlotResolutionSource } from "../../core/types.js";
 import { renderGsdContext } from "../../frameworks/gsd.js";
@@ -98,9 +98,11 @@ export async function runPreflightCommand(args: string[], context: CliContext): 
     const continuationSlots = isContinuationOnlyRequest(options.rawInput)
       ? (compileSessionRepository.latestForProject(context.cwd)?.resolvedSlots ?? {})
       : {};
-    const historyMatches = retrievePromptEntries(promptRepository, options.rawInput, 3, {
-      projectPath: context.cwd
-    });
+    const historyMatches = shouldUseHistoryEnrichment(options.rawInput)
+      ? retrievePromptEntries(promptRepository, options.rawInput, 3, {
+          projectPath: context.cwd
+        })
+      : [];
     const snippets = historyMatches.map((row) => row.promptText);
     const historyEvidence = historyMatches.map((entry) => ({
       id: entry.id,

@@ -3,3 +3,7 @@ const CONTINUATION_ONLY_PATTERN = /^(?:(?:please\s+)?(?:continue|keep going|go o
 export function isContinuationOnlyRequest(rawInput: string): boolean {
   return CONTINUATION_ONLY_PATTERN.test(rawInput.trim());
 }
+
+export function shouldUseHistoryEnrichment(rawInput: string): boolean {
+  return !isContinuationOnlyRequest(rawInput);
+}

@@ -7,6 +7,7 @@ import { runCli } from "../../src/cli/index.js";
 import { globalDataDir, databasePath } from "../../src/config/paths.js";
 import { Database } from "../../src/storage/database.js";
 import { CompileSessionRepository } from "../../src/storage/compile-session-repository.js";
+import { PromptRepository } from "../../src/storage/prompt-repository.js";
 import { ProfileRepository } from "../../src/storage/profile-repository.js";
 
 test("runCli compile persists the latest compile session", async () => {
@@ -44,4 +45,62 @@ test("runCli compile persists the latest compile session", async () => {
   assert.equal(output.some((line) => line.includes("Task Goal")), true);
   assert.notEqual(latest, null);
   assert.equal(latest?.rawInput.includes("优化这个导入逻辑"), true);
+});
+
+test("runCli compile uses same-project continuation context without attaching trivial history matches", async () => {
+  const root = mkdtempSync(join(tmpdir(), "prompt-skill-project-"));
+  const homeDir = mkdtempSync(join(tmpdir(), "prompt-skill-home-"));
+  const database = new Database(databasePath(globalDataDir(homeDir)));
+  const compileSessionRepository = new CompileSessionRepository(database);
+  const promptRepository = new PromptRepository(database);
+
+  compileSessionRepository.save({
+    projectPath: root,
+    rawInput: "优化这个导入逻辑，保持外部命令行为不变，并运行相关测试验证",
+    compiledPrompt: "Task Goal\n优化这个导入逻辑",
+    followUpQuestions: [],
+    resolvedSlots: {
+      target: "导入逻辑",
+      constraints: "不要改变外部命令行为",
+      verification: "运行相关测试验证"
+    },
+    targetFramework: "plain",
+    targetHost: "cli",
+    usedHistoryIds: []
+  });
+
+  promptRepository.upsertMany([
+    {
+      id: "codex:continuation-history-1",
+      tool: "codex",
+      projectPath: root,
+      sessionId: "session-continuation-1",
+      timestamp: "2026-04-19T10:00:00.000Z",
+      promptText: "继续优化",
+      sourceFile: "/tmp/source.jsonl",
+      sourceOffset: 0,
+      fingerprint: "fp-continuation-history-1",
+      isFavorite: false,
+      tags: [],
+      importedAt: "2026-04-19T10:00:00.000Z"
+    }
+  ]);
+  database.close();
+
+  const output: string[] = [];
+  const exitCode = await runCli(["compile", "继续优化"], {
+    cwd: root,
+    homeDir,
+    stdout: (line) => output.push(line),
+    stderr: (line) => output.push(line)
+  });
+
+  const verifyDatabase = new Database(databasePath(globalDataDir(homeDir)));
+  const latest = new CompileSessionRepository(verifyDatabase).latest();
+  verifyDatabase.close();
+
+  assert.equal(exitCode, 0);
+  assert.equal(output.some((line) => line.includes("导入逻辑")), true);
+  assert.deepEqual(latest?.usedHistoryIds, []);
+  assert.equal(latest?.compiledPrompt.includes("Relevant Prompt Memory\n- none"), true);
 });
