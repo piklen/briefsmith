@@ -36,7 +36,7 @@
   },
   "scripts": {
     "clean": "node -e \"require('node:fs').rmSync('dist', { recursive: true, force: true })\"",
-    "build": "npm run clean && tsc -p tsconfig.json",
+    "build": "npm run clean && tsc -p tsconfig.json && node -e \"require('node:fs').chmodSync('dist/src/cli/index.js', 0o755)\"",
     "check": "tsc -p tsconfig.json --noEmit",
     "test": "node --import tsx --test \"tests/**/*.test.ts\"",
     "changeset": "changeset",

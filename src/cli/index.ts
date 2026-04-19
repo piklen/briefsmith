@@ -19,40 +19,102 @@ import { runShowCommand } from "./commands/show.js";
 import { runStarCommand } from "./commands/star.js";
 import { runTagsCommand } from "./commands/tags.js";
 
-const helpLines = [
-  `${CLI_NAME} import`,
-  `${CLI_NAME} reindex`,
-  `${CLI_NAME} find <query>`,
-  `${CLI_NAME} show <id>`,
-  `${CLI_NAME} star <id>`,
-  `${CLI_NAME} unstar <id>`,
-  `${CLI_NAME} favorites list`,
-  `${CLI_NAME} tags add <id> <tag>`,
-  `${CLI_NAME} tags remove <id> <tag>`,
-  `${CLI_NAME} tags list <id>`,
-  `${CLI_NAME} compile "<raw input>" [--framework plain|gsd|superpowers|gstack]`,
-  `${CLI_NAME} preflight "<raw input>" [--host cli|claude|codex|opencode] [--json] [--framework plain|gsd|superpowers|gstack]`,
-  `${CLI_NAME} compile latest`,
-  `${CLI_NAME} compile history`,
-  `${CLI_NAME} compile show <id>`,
-  `${CLI_NAME} profile show`,
-  `${CLI_NAME} profile refresh`,
-  `${CLI_NAME} policy show`,
-  `${CLI_NAME} policy mode <off|suggest|auto-compile>`,
-  `${CLI_NAME} policy threshold <cli|claude|codex|opencode> <value>`,
-  `${CLI_NAME} policy threshold <cli|claude|codex|opencode> <target|success_criteria|constraints|output_format> <value>`,
-  `${CLI_NAME} start`,
-  `${CLI_NAME} stop`,
-  `${CLI_NAME} doctor`,
-  `${CLI_NAME} adapters list`,
-  `${CLI_NAME} adapters install <claude|codex|opencode|all> [--scope project|global]`,
-  `${CLI_NAME} adapters doctor [claude|codex] [--scope project|global]`
+interface HelpItem {
+  command: string;
+  description: string;
+}
+
+interface HelpSection {
+  title: string;
+  items: HelpItem[];
+}
+
+const helpSections: HelpSection[] = [
+  {
+    title: "History & Retrieval",
+    items: [
+      { command: `${CLI_NAME} import`, description: "scan local AI histories and import prompts into Briefsmith" },
+      { command: `${CLI_NAME} reindex`, description: "rescan local AI histories and refresh the stored index" },
+      { command: `${CLI_NAME} find <query>`, description: "search imported prompts by keyword or phrase" },
+      { command: `${CLI_NAME} show <id>`, description: "show one stored prompt in full detail" },
+      { command: `${CLI_NAME} star <id>`, description: "mark a prompt as a favorite" },
+      { command: `${CLI_NAME} unstar <id>`, description: "remove a prompt from favorites" },
+      { command: `${CLI_NAME} favorites list`, description: "list all favorited prompts" },
+      { command: `${CLI_NAME} tags add <id> <tag>`, description: "attach a tag to a stored prompt" },
+      { command: `${CLI_NAME} tags remove <id> <tag>`, description: "remove a tag from a stored prompt" },
+      { command: `${CLI_NAME} tags list <id>`, description: "list tags attached to a stored prompt" }
+    ]
+  },
+  {
+    title: "Core Runtime",
+    items: [
+      {
+        command: `${CLI_NAME} compile "<raw input>" [--framework plain|gsd|superpowers|gstack]`,
+        description: "turn a raw request into a stronger task brief"
+      },
+      {
+        command: `${CLI_NAME} preflight "<raw input>" [--host cli|claude|codex|opencode] [--json] [--framework plain|gsd|superpowers|gstack]`,
+        description: "decide whether the host should ask, compile, or skip"
+      },
+      { command: `${CLI_NAME} compile latest`, description: "show the most recent compile result" },
+      { command: `${CLI_NAME} compile history`, description: "list recent compile sessions" },
+      { command: `${CLI_NAME} compile show <id>`, description: "show one compile session in detail" }
+    ]
+  },
+  {
+    title: "Profile & Policy",
+    items: [
+      { command: `${CLI_NAME} profile show`, description: "show the current inferred user profile" },
+      { command: `${CLI_NAME} profile refresh`, description: "rebuild the user profile from imported prompts" },
+      { command: `${CLI_NAME} policy show`, description: "show the current project policy" },
+      { command: `${CLI_NAME} policy mode <off|suggest|auto-compile>`, description: "change how this project handles vague requests" },
+      {
+        command: `${CLI_NAME} policy threshold <cli|claude|codex|opencode> <value>`,
+        description: "set the default confidence threshold for one host"
+      },
+      {
+        command: `${CLI_NAME} policy threshold <cli|claude|codex|opencode> <target|success_criteria|constraints|output_format> <value>`,
+        description: "set the confidence threshold for one host slot"
+      },
+      { command: `${CLI_NAME} start`, description: "enable prompt checks for the current project" },
+      { command: `${CLI_NAME} stop`, description: "disable prompt checks for the current project" }
+    ]
+  },
+  {
+    title: "Diagnostics & Adapters",
+    items: [
+      { command: `${CLI_NAME} doctor`, description: "check runtime health, data files, and source paths" },
+      { command: `${CLI_NAME} adapters list`, description: "list supported host adapters and install scopes" },
+      {
+        command: `${CLI_NAME} adapters install <claude|codex|opencode|all> [--scope project|global]`,
+        description: "install one or all host adapters into the project or user environment"
+      },
+      {
+        command: `${CLI_NAME} adapters doctor [claude|codex|opencode] [--scope project|global]`,
+        description: "verify whether adapter files were installed correctly"
+      }
+    ]
+  }
 ];
 
 function printHelp(context: CliContext): number {
-  for (const line of helpLines) {
-    context.stdout(line);
+  const commandWidth = Math.max(...helpSections.flatMap((section) => section.items.map((item) => item.command.length)));
+
+  context.stdout("Briefsmith CLI");
+  context.stdout("Turn vague user requests into executable task briefs before the host AI acts.");
+  context.stdout("");
+
+  for (const section of helpSections) {
+    context.stdout(section.title);
+    for (const item of section.items) {
+      context.stdout(`  ${item.command.padEnd(commandWidth)}  # ${item.description}`);
+    }
+    context.stdout("");
   }
+
+  context.stdout("Tips");
+  context.stdout(`  ${CLI_NAME} help`.padEnd(commandWidth + 2) + "  # show this help output");
+  context.stdout(`  ${CLI_NAME} --help`.padEnd(commandWidth + 2) + "  # same as above");
   return 0;
 }
 
@@ -73,7 +135,7 @@ export async function runCli(args: string[], partialContext?: Partial<CliContext
   const context = createCliContext(partialContext);
   const [command, ...rest] = args;
 
-  if (!command || command === "--help" || command === "-h") {
+  if (!command || command === "--help" || command === "-h" || command === "help") {
     return printHelp(context);
   }
 
@@ -144,6 +206,7 @@ export async function runCli(args: string[], partialContext?: Partial<CliContext
       return runAdaptersCommand(rest, context);
     default:
       context.stderr(`Unknown command: ${command}`);
+      context.stderr(`Run \`${CLI_NAME} --help\` to see available commands.`);
       return 1;
   }
 }

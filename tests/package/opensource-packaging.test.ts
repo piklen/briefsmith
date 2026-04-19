@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 
 const REPO_ROOT = process.cwd();
@@ -77,6 +77,16 @@ test("npm pack dry-run produces a minimal runtime package", () => {
   assert.equal(packedFiles.includes("SECURITY.md"), false);
   assert.equal(packedFiles.includes("CODE_OF_CONDUCT.md"), false);
   assert.equal(packedFiles.includes("dist/src/host/template-loader.js"), false);
+});
+
+test("build keeps the CLI entrypoint executable for linked global installs", () => {
+  execFileSync("npm", ["run", "build"], {
+    cwd: REPO_ROOT,
+    encoding: "utf8"
+  });
+
+  const mode = statSync(join(REPO_ROOT, "dist", "src", "cli", "index.js")).mode;
+  assert.equal((mode & 0o111) !== 0, true);
 });
 
 test("repository includes a documented release workflow", () => {

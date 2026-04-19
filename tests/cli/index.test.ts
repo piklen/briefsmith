@@ -17,9 +17,11 @@ test("runCli prints top-level help when no args are given", async () => {
   });
 
   assert.equal(exitCode, 0);
-  assert.equal(output.some((line) => line.includes(`${CLI_NAME} import`)), true);
-  assert.equal(output.some((line) => line.includes(`${CLI_NAME} compile`)), true);
-  assert.equal(output.some((line) => line.includes(`${CLI_NAME} doctor`)), true);
+  assert.equal(output.some((line) => line.includes("History & Retrieval")), true);
+  assert.equal(output.some((line) => line.includes(`${CLI_NAME} import`) && line.includes("#")), true);
+  assert.equal(output.some((line) => line.includes(`${CLI_NAME} compile`) && line.includes("#")), true);
+  assert.equal(output.some((line) => line.includes(`${CLI_NAME} doctor`) && line.includes("#")), true);
+  assert.equal(output.some((line) => line.includes(`${CLI_NAME} adapters doctor [claude|codex|opencode]`)), true);
 });
 
 test("runCli prints top-level help for --help and -h", async () => {
@@ -32,9 +34,35 @@ test("runCli prints top-level help for --help and -h", async () => {
     });
 
     assert.equal(exitCode, 0);
-    assert.equal(output.some((line) => line.includes(`${CLI_NAME} import`)), true);
-    assert.equal(output.some((line) => line.includes(`${CLI_NAME} compile`)), true);
+    assert.equal(output.some((line) => line.includes("Core Runtime")), true);
+    assert.equal(output.some((line) => line.includes(`${CLI_NAME} compile`) && line.includes("#")), true);
   }
+});
+
+test("runCli prints top-level help for help alias", async () => {
+  const output: string[] = [];
+  const exitCode = await runCli(["help"], {
+    cwd: process.cwd(),
+    stdout: (line) => output.push(line),
+    stderr: (line) => output.push(line),
+  });
+
+  assert.equal(exitCode, 0);
+  assert.equal(output.some((line) => line.includes("Tips")), true);
+  assert.equal(output.some((line) => line.includes(`${CLI_NAME} policy show`) && line.includes("#")), true);
+});
+
+test("runCli suggests --help when command is unknown", async () => {
+  const output: string[] = [];
+  const exitCode = await runCli(["wat"], {
+    cwd: process.cwd(),
+    stdout: (line) => output.push(line),
+    stderr: (line) => output.push(line),
+  });
+
+  assert.equal(exitCode, 1);
+  assert.equal(output.some((line) => line.includes("Unknown command: wat")), true);
+  assert.equal(output.some((line) => line.includes(`${CLI_NAME} --help`)), true);
 });
 
 test("isCliEntrypoint treats a symlinked bin path as the CLI entrypoint", () => {
