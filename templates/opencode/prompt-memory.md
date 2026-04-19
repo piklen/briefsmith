@@ -1,6 +1,6 @@
 # Prompt Memory for OpenCode
 
-Use the canonical prompt-memory skill plus the local runtime before acting on vague requests.
+Use the canonical prompt-memory skill plus Briefsmith preflight before acting on vague AI coding requests.
 
 # Prompt Memory
 
@@ -13,21 +13,22 @@ Use the canonical prompt-memory skill plus the local runtime before acting on va
 
 ## Core Job
 
-Turn rough user intent into an executable task brief without inventing missing facts.
+Preflight rough AI coding requests: ask when key execution details are missing, compile when enough local context exists, and never invent missing facts.
 
 ## What to Do
 
-1. Check whether the request is missing target, success criteria, constraints, or output format.
+1. Check whether the request is missing target, success criteria, constraints, output format, or verification.
 2. Search local prompt history when the user refers to earlier prompts or recurring task patterns.
 3. Reuse stable constraints from project instructions and explicit user boundaries.
 4. If missing context would materially change execution quality, ask only the smallest set of follow-up questions needed.
-5. If enough context is available, proceed with a clearer internal task brief instead of the raw user wording.
+5. If enough context is available, compile a clearer execution brief instead of acting on the raw user wording.
 
 ## Boundaries
 
 - Do not invent facts the user did not provide.
 - Preserve explicit boundaries such as "不要改外部行为" and "keep API unchanged".
 - Prefer minimal follow-up questions over long clarification checklists.
+- Do not turn every vague request into a longer prompt if one small question would be safer.
 
 ## OpenCode Runtime Integration
 

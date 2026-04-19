@@ -2,52 +2,55 @@
 
 [English](README.md) | [简体中文](README.zh-CN.md)
 
-> 一个把模糊用户请求转换成可执行任务说明的 prompt quality gate，面向 AI coding hosts。
+> Briefsmith 是一个面向 AI coding agents 的 request compiler 和执行前置层。
 
-Briefsmith 用在 Codex、Claude Code、OpenCode 这类宿主前面，在真正执行前先判断“这句话到底够不够执行”。
+不要让 coding agent 自己猜“帮我优化”到底是什么意思。
 
-当用户只说一句“帮我优化”时，Briefsmith 会先回答三个问题：
-
-1. 这条请求是否已经足够明确，可以高置信直接执行？
-2. 是否可以用本地 prompt 历史、profile 推断和项目策略把缺失上下文补齐？
-3. 如果还是不够，宿主最少应该追问什么？
-
-所以它不是一个单纯“润色 prompt”的工具，而是一个执行前置层。
+Briefsmith 放在 Codex、Claude Code、OpenCode 这类宿主前面。当请求信息不完整时，它先决定应该 ask、compile，还是 skip，然后宿主再执行。
 
 ## 为什么做这个
 
-很多 AI 输出质量差，并不是模型能力不够，而是任务描述本身太弱。
+很多 agent 失败，不是模型不够强，而是请求在执行前就不具备可执行性：
 
-常见失败路径：
+- 没有明确目标
+- 成功标准是隐含的
+- 约束没有说清
+- 输出要求模糊
+- 验证方式缺失
 
-- 用户给的是模糊意图
-- 宿主 AI 自行猜测目标或约束
-- 关键边界条件丢失
-- 最终输出看起来合理，但其实做错了事
+这不是“句子不够漂亮”，而是“请求还不能安全执行”。
 
-Briefsmith 的作用就是在执行前，先尽量用本地上下文把这段差距补上。
+Briefsmith 的作用，是在真正动手前，优先用本地历史、用户偏好和项目策略把歧义压缩掉。
+
+## 核心决策：`ask / compile / skip`
+
+| 动作 | 含义 |
+| --- | --- |
+| `ask` | 关键执行信息仍然缺失，宿主应该先追问一个小而关键的问题 |
+| `compile` | 上下文已经足够，可以生成更强的 coding brief |
+| `skip` | 当前项目关闭了 prompt 检查 |
 
 ## 核心流程
 
 ```text
-local prompt history
--> retrieval and reuse
--> profile inference
--> project policy check
+human request
+-> slot detection
+-> history / profile / policy enrichment
 -> ask / compile / skip
--> host AI execution
+-> coding agent execution
 ```
 
-## 能力概览
+## 产品本体是什么
 
-| 能力 | 作用 |
-| --- | --- |
-| `import` / `find` / `show` / favorites / tags | 把本地 prompt 历史变成可复用上下文 |
-| `profile refresh` | 从历史 prompt 中推断用户长期偏好 |
-| `compile` | 把原始意图编译成更可执行的任务 brief |
-| `preflight` | 判断宿主应该追问、编译还是跳过 |
-| `policy` / `start` / `stop` | 控制项目级行为和置信度阈值 |
-| `adapters` | 安装 Claude Code、Codex、OpenCode 的接入层 |
+Briefsmith 的产品价值，不在“能存 prompt”“能收藏 prompt”这些外围能力。
+
+真正的产品本体是 preflight 决策：
+
+- 这次要不要先问？
+- 这次能不能直接编译成更强任务说明？
+- 本地上下文是否已经足够解释用户真实意图？
+
+历史、profile、policy、adapters 都是在支撑这个决策。
 
 打包约定：
 
@@ -73,9 +76,14 @@ npx briefsmith --help
 ### 跑通主链路
 
 ```bash
+briefsmith preflight "优化这个导入流程，但不要改变外部行为" --host codex --json
+```
+
+如果你想先补强本地信号：
+
+```bash
 briefsmith import
 briefsmith profile refresh
-briefsmith preflight "优化这个导入流程，但不要改变外部行为" --host codex --json
 ```
 
 ### 安装宿主适配层
@@ -87,7 +95,7 @@ briefsmith adapters doctor
 
 ## `preflight` 是怎么工作的
 
-`preflight` 是宿主适配层最重要的稳定入口。
+`preflight` 是整个产品的主入口。
 
 它会返回三种动作：
 
@@ -126,7 +134,16 @@ briefsmith preflight "optimize this import flow" --host codex --json
 | `resolvedSlotSources` | 每个槽位来自哪里 |
 | `resolvedSlotConfidence` | 每个槽位的置信度 |
 
-## Host Adapters
+## 支撑能力
+
+| 支撑能力 | 为什么存在 |
+| --- | --- |
+| `import` / `reindex` / `find` / `show` / favorites / tags | 给 `preflight` 提供本地历史证据，而不是让宿主盲猜 |
+| `profile refresh` | 推断用户稳定偏好，减少后续 brief 的波动 |
+| `policy` / `start` / `stop` | 控制 Briefsmith 在什么情况下追问、编译或退出 |
+| `adapters` | 把 Briefsmith 接入 Claude Code、Codex、OpenCode，而不是手动改宿主文件 |
+
+## 宿主适配层
 
 | 宿主 | 接入形态 |
 | --- | --- |
@@ -198,10 +215,21 @@ briefsmith stop
 
 ## CLI 概览
 
-### 历史检索
+### 核心 Preflight
+
+```bash
+briefsmith preflight "优化一下这个导入逻辑" --host codex --json
+briefsmith compile "优化这个导入逻辑，不要改变外部行为" --framework superpowers
+briefsmith compile latest
+briefsmith compile history
+briefsmith compile show <compile-session-id>
+```
+
+### 支撑上下文
 
 ```bash
 briefsmith import
+briefsmith reindex
 briefsmith find "优化"
 briefsmith show <prompt-id>
 briefsmith star <prompt-id>
@@ -212,23 +240,13 @@ briefsmith tags remove <prompt-id> <tag>
 briefsmith tags list <prompt-id>
 ```
 
-### Profile 与编译
+### 宿主接入与诊断
 
 ```bash
-briefsmith profile show
-briefsmith profile refresh
-briefsmith compile "优化这个导入逻辑，不要改变外部行为" --framework superpowers
-briefsmith compile latest
-briefsmith compile history
-briefsmith compile show <compile-session-id>
-briefsmith preflight "优化一下这个导入逻辑" --host codex --json
-```
-
-### 健康检查
-
-```bash
-briefsmith doctor
+briefsmith adapters list
+briefsmith adapters install all --scope project
 briefsmith adapters doctor
+briefsmith doctor
 ```
 
 支持的 framework 渲染器：

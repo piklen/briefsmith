@@ -17,9 +17,9 @@ test("runCli prints top-level help when no args are given", async () => {
   });
 
   assert.equal(exitCode, 0);
-  assert.equal(output.some((line) => line.includes("History & Retrieval")), true);
+  assert.equal(output.some((line) => line.includes("Core Preflight")), true);
+  assert.equal(output.some((line) => line.includes(`${CLI_NAME} preflight`) && line.includes("#")), true);
   assert.equal(output.some((line) => line.includes(`${CLI_NAME} import`) && line.includes("#")), true);
-  assert.equal(output.some((line) => line.includes(`${CLI_NAME} compile`) && line.includes("#")), true);
   assert.equal(output.some((line) => line.includes(`${CLI_NAME} doctor`) && line.includes("#")), true);
   assert.equal(output.some((line) => line.includes(`${CLI_NAME} adapters doctor [claude|codex|opencode]`)), true);
 });
@@ -34,7 +34,8 @@ test("runCli prints top-level help for --help and -h", async () => {
     });
 
     assert.equal(exitCode, 0);
-    assert.equal(output.some((line) => line.includes("Core Runtime")), true);
+    assert.equal(output.some((line) => line.includes("Preflight human requests before your coding agent guesses what they mean.")), true);
+    assert.equal(output.some((line) => line.includes("Host Integration")), true);
     assert.equal(output.some((line) => line.includes(`${CLI_NAME} compile`) && line.includes("#")), true);
   }
 });
@@ -49,7 +50,7 @@ test("runCli prints top-level help for help alias", async () => {
 
   assert.equal(exitCode, 0);
   assert.equal(output.some((line) => line.includes("Tips")), true);
-  assert.equal(output.some((line) => line.includes(`${CLI_NAME} policy show`) && line.includes("#")), true);
+  assert.equal(output.some((line) => line.includes(`${CLI_NAME} preflight "optimize this import flow" --host codex --json`) && line.includes("#")), true);
 });
 
 test("runCli suggests --help when command is unknown", async () => {

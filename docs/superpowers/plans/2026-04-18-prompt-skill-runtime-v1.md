@@ -1,5 +1,7 @@
 # Prompt Skill Runtime V1 Implementation Plan
 
+> Historical note: this plan documents the original v1 bootstrap. The current external positioning is Briefsmith as an AI coding request preflight tool, so old `prompt ...` command examples here should be read as implementation history, not current CLI usage.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Build a lightweight TypeScript-based prompt skill runtime that imports local prompt history, supports search/favorites/profile management, compiles vague user input into stronger prompts, and exposes host/framework adapter seams for Claude Code, Codex, Superpowers, Gstack, and GSD.

@@ -31,30 +31,15 @@ interface HelpSection {
 
 const helpSections: HelpSection[] = [
   {
-    title: "History & Retrieval",
+    title: "Core Preflight",
     items: [
-      { command: `${CLI_NAME} import`, description: "scan local AI histories and import prompts into Briefsmith" },
-      { command: `${CLI_NAME} reindex`, description: "rescan local AI histories and refresh the stored index" },
-      { command: `${CLI_NAME} find <query>`, description: "search imported prompts by keyword or phrase" },
-      { command: `${CLI_NAME} show <id>`, description: "show one stored prompt in full detail" },
-      { command: `${CLI_NAME} star <id>`, description: "mark a prompt as a favorite" },
-      { command: `${CLI_NAME} unstar <id>`, description: "remove a prompt from favorites" },
-      { command: `${CLI_NAME} favorites list`, description: "list all favorited prompts" },
-      { command: `${CLI_NAME} tags add <id> <tag>`, description: "attach a tag to a stored prompt" },
-      { command: `${CLI_NAME} tags remove <id> <tag>`, description: "remove a tag from a stored prompt" },
-      { command: `${CLI_NAME} tags list <id>`, description: "list tags attached to a stored prompt" }
-    ]
-  },
-  {
-    title: "Core Runtime",
-    items: [
-      {
-        command: `${CLI_NAME} compile "<raw input>" [--framework plain|gsd|superpowers|gstack]`,
-        description: "turn a raw request into a stronger task brief"
-      },
       {
         command: `${CLI_NAME} preflight "<raw input>" [--host cli|claude|codex|opencode] [--json] [--framework plain|gsd|superpowers|gstack]`,
-        description: "decide whether the host should ask, compile, or skip"
+        description: "main entrypoint: ask, compile, or skip before agent execution"
+      },
+      {
+        command: `${CLI_NAME} compile "<raw input>" [--framework plain|gsd|superpowers|gstack]`,
+        description: "force-generate a stronger task brief from raw input"
       },
       { command: `${CLI_NAME} compile latest`, description: "show the most recent compile result" },
       { command: `${CLI_NAME} compile history`, description: "list recent compile sessions" },
@@ -62,10 +47,22 @@ const helpSections: HelpSection[] = [
     ]
   },
   {
-    title: "Profile & Policy",
+    title: "Host Integration",
     items: [
-      { command: `${CLI_NAME} profile show`, description: "show the current inferred user profile" },
-      { command: `${CLI_NAME} profile refresh`, description: "rebuild the user profile from imported prompts" },
+      { command: `${CLI_NAME} adapters list`, description: "list supported host adapters and install scopes" },
+      {
+        command: `${CLI_NAME} adapters install <claude|codex|opencode|all> [--scope project|global]`,
+        description: "install Briefsmith into one or more coding hosts"
+      },
+      {
+        command: `${CLI_NAME} adapters doctor [claude|codex|opencode] [--scope project|global]`,
+        description: "verify whether adapter files were installed correctly"
+      }
+    ]
+  },
+  {
+    title: "Policy Control",
+    items: [
       { command: `${CLI_NAME} policy show`, description: "show the current project policy" },
       { command: `${CLI_NAME} policy mode <off|suggest|auto-compile>`, description: "change how this project handles vague requests" },
       {
@@ -81,27 +78,38 @@ const helpSections: HelpSection[] = [
     ]
   },
   {
-    title: "Diagnostics & Adapters",
+    title: "Supporting Context",
     items: [
-      { command: `${CLI_NAME} doctor`, description: "check runtime health, data files, and source paths" },
-      { command: `${CLI_NAME} adapters list`, description: "list supported host adapters and install scopes" },
-      {
-        command: `${CLI_NAME} adapters install <claude|codex|opencode|all> [--scope project|global]`,
-        description: "install one or all host adapters into the project or user environment"
-      },
-      {
-        command: `${CLI_NAME} adapters doctor [claude|codex|opencode] [--scope project|global]`,
-        description: "verify whether adapter files were installed correctly"
-      }
+      { command: `${CLI_NAME} import`, description: "scan local AI histories so preflight has better signal" },
+      { command: `${CLI_NAME} reindex`, description: "refresh imported history after local sessions change" },
+      { command: `${CLI_NAME} find <query>`, description: "search stored prompts for reusable context" },
+      { command: `${CLI_NAME} show <id>`, description: "show one stored prompt in full detail" },
+      { command: `${CLI_NAME} star <id>`, description: "mark a prompt as a favorite" },
+      { command: `${CLI_NAME} unstar <id>`, description: "remove a prompt from favorites" },
+      { command: `${CLI_NAME} favorites list`, description: "list all favorited prompts" },
+      { command: `${CLI_NAME} tags add <id> <tag>`, description: "attach a tag to a stored prompt" },
+      { command: `${CLI_NAME} tags remove <id> <tag>`, description: "remove a tag from a stored prompt" },
+      { command: `${CLI_NAME} tags list <id>`, description: "list tags attached to a stored prompt" },
+      { command: `${CLI_NAME} profile show`, description: "show the current inferred user profile" },
+      { command: `${CLI_NAME} profile refresh`, description: "rebuild inferred preferences used by preflight" }
+    ]
+  },
+  {
+    title: "Diagnostics",
+    items: [
+      { command: `${CLI_NAME} doctor`, description: "check runtime health, data files, and source paths" }
     ]
   }
 ];
 
 function printHelp(context: CliContext): number {
   const commandWidth = Math.max(...helpSections.flatMap((section) => section.items.map((item) => item.command.length)));
+  const tipWidth = commandWidth + 2;
+  const preflightExample = `${CLI_NAME} preflight "optimize this import flow" --host codex --json`;
 
   context.stdout("Briefsmith CLI");
-  context.stdout("Turn vague user requests into executable task briefs before the host AI acts.");
+  context.stdout("Preflight human requests before your coding agent guesses what they mean.");
+  context.stdout("Main flow: ask, compile, or skip.");
   context.stdout("");
 
   for (const section of helpSections) {
@@ -113,8 +121,12 @@ function printHelp(context: CliContext): number {
   }
 
   context.stdout("Tips");
-  context.stdout(`  ${CLI_NAME} help`.padEnd(commandWidth + 2) + "  # show this help output");
-  context.stdout(`  ${CLI_NAME} --help`.padEnd(commandWidth + 2) + "  # same as above");
+  context.stdout(
+    `  ${preflightExample.padEnd(tipWidth)}  # main entrypoint for host-side decisioning`
+  );
+  context.stdout(`  ${`${CLI_NAME} import`.padEnd(tipWidth)}  # optional: load local history so preflight has more signal`);
+  context.stdout(`  ${CLI_NAME} help`.padEnd(tipWidth) + "  # show this help output");
+  context.stdout(`  ${CLI_NAME} --help`.padEnd(tipWidth) + "  # same as above");
   return 0;
 }
 

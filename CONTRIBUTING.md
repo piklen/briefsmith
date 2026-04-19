@@ -1,6 +1,6 @@
 # Contributing
 
-Thanks for contributing to Prompt Skill Runtime.
+Thanks for contributing to Briefsmith.
 
 ## Development Setup
 

@@ -1,7 +1,7 @@
 {
   "name": "briefsmith",
   "version": "0.1.0",
-  "description": "Briefsmith is a prompt quality gate and task brief compiler for AI coding hosts such as Codex, Claude Code, and OpenCode.",
+  "description": "Briefsmith is a request compiler and preflight gate for AI coding agents such as Codex, Claude Code, and OpenCode.",
   "license": "MIT",
   "type": "module",
   "homepage": "https://github.com/piklen/briefsmith#readme",
@@ -13,6 +13,10 @@
     "url": "git+https://github.com/piklen/briefsmith.git"
   },
   "keywords": [
+    "preflight",
+    "request-compiler",
+    "ai-coding",
+    "prompt-engineering",
     "prompt",
     "cli",
     "codex",

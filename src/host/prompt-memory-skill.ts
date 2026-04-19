@@ -23,7 +23,7 @@ export async function renderPromptMemoryCodexAgentsSnippet(
     startMarker,
     "## Prompt Memory Runtime",
     "",
-    "Use the prompt-memory skill to turn vague user requests into an executable task brief before acting.",
+    "Use the prompt-memory skill to preflight vague AI coding requests before acting.",
     "",
     skillBody,
     "",
@@ -45,7 +45,7 @@ export async function renderPromptMemoryOpenCodeInstructions(): Promise<string> 
   return [
     "# Prompt Memory for OpenCode",
     "",
-    "Use the canonical prompt-memory skill plus the local runtime before acting on vague requests.",
+    "Use the canonical prompt-memory skill plus Briefsmith preflight before acting on vague AI coding requests.",
     "",
     skillBody,
     "",

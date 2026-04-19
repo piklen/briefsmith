@@ -38,6 +38,8 @@ test("README does not contain workstation-specific absolute links", () => {
   assert.equal(readme.includes("/Library/Code/AI/prompt"), false);
   assert.equal(readme.includes("npm install -g briefsmith"), true);
   assert.equal(readme.includes("npx briefsmith"), true);
+  assert.equal(readme.includes("request compiler and preflight gate"), true);
+  assert.equal(readme.includes("ask / compile / skip"), true);
   assert.equal(readme.toLowerCase().includes("release workflow"), true);
 });
 
@@ -48,6 +50,7 @@ test("repository includes bilingual README files with language selector links", 
   assert.equal(existsSync(join(REPO_ROOT, "README.zh-CN.md")), true);
   assert.equal(readme.includes("[简体中文](README.zh-CN.md)"), true);
   assert.equal(readmeZh.includes("[English](README.md)"), true);
+  assert.equal(readmeZh.includes("request compiler 和执行前置层"), true);
   assert.equal(readmeZh.includes("/Library/Code/AI/prompt"), false);
 });
 

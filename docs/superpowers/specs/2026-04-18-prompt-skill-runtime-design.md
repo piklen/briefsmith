@@ -1,5 +1,7 @@
 # Prompt Skill Runtime 设计
 
+> Historical note: this is the early v1 runtime design. Current product positioning is the AI coding request preflight model documented in `docs/superpowers/specs/2026-04-19-prompt-quality-gate-positioning-design.md`, and the shipped CLI name is `briefsmith`.
+
 ## 1. 目标
 
 把当前项目正式定义为一个 **skill-first 的 Prompt Memory / Prompt Compiler 运行时**，而不是一个以前台可视化为中心的应用。

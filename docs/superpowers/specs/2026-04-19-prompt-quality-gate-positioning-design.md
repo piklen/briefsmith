@@ -1,19 +1,20 @@
-# Prompt Quality Gate / Task Brief Compiler 定位说明
+# AI Coding Request Preflight / Request Compiler 定位说明
 
 ## 1. 结论
 
-本项目的真实目标，不应再被理解为“prompt 存储工具”或“prompt 润色器”。
+本项目的真实目标，不应再被理解为“功能很多的 prompt 工具”“prompt 存储工具”或“prompt 润色器”。
 
 更准确的定义是：
 
-> 一个面向 AI coding 宿主的 Prompt Quality Gate / Task Brief Compiler。
+> 一个面向 AI coding agents 的 Request Compiler / Preflight Gate。
 
-它的职责是在 AI 真正执行前，对用户原始输入做一次 **歧义压缩**：
+它的职责是在 AI 真正执行前，对用户原始输入做一次 **执行前歧义压缩**：
 
 - 能补的补。
 - 不能补的问。
 - 能明确边界的就提前明确边界。
-- 最终输出给宿主 AI 的不是原始口语，而是更稳定的执行前上下文。
+- 最终决定是 ask、compile，还是 skip。
+- 输出给宿主 AI 的不是原始口语，而是更稳定的执行前上下文。
 
 ## 2. 它解决的到底是什么问题
 
@@ -31,7 +32,7 @@
 
 因此，本项目面对的不是语言修辞问题，而是 **任务可执行性问题**。
 
-### 2.2 本质是执行前的信息分流
+### 2.2 本质是执行前的信息分流与动作决策
 
 对模糊请求，系统需要做的不是盲目生成更长 prompt，而是判断：
 
@@ -42,7 +43,7 @@
 
 所以本项目的核心能力可以概括为：
 
-`模糊意图 -> 槽位检测 -> 上下文补全 -> 置信度判断 -> 编译或追问`
+`模糊意图 -> 槽位检测 -> 上下文补全 -> 置信度判断 -> ask / compile / skip`
 
 ## 3. 产品边界
 
@@ -53,6 +54,7 @@
 - 对当前输入做缺槽检测
 - 结合历史和 profile 自动补全高置信上下文
 - 在低置信或高风险情况下返回最小必要追问
+- 在上下文足够时编译出更强的 coding brief
 - 按宿主和框架渲染成可消费的 brief
 
 ### 3.2 不该被当成的东西
@@ -66,13 +68,13 @@
 
 当前闭环应该理解为：
 
-`历史 prompt -> 检索复用 -> profile 推断 -> 当前输入补全 -> preflight 决策 -> 宿主 AI 执行`
+`历史 prompt -> 检索复用 -> profile 推断 -> 当前输入补全 -> ask / compile / skip -> 宿主 AI 执行`
 
 其中：
 
-- `import / reindex / find / favorites / tags` 负责“记住和找回”
+- `import / reindex / find / favorites / tags` 负责“提供历史信号”
 - `profile` 负责“形成稳定偏好”
-- `compile / preflight` 负责“把模糊输入变成可执行任务”
+- `preflight / compile` 负责“决定 ask / compile / skip，并把模糊输入变成可执行任务”
 - `host adapters` 负责“把结果接进不同宿主”
 
 所以历史能力是支撑层，不是产品终点。
@@ -209,8 +211,8 @@
 
 可以把本项目对外描述为：
 
-> 一个帮助 AI coding 宿主把模糊用户输入转换成高质量执行 brief 的本地运行时。
+> 一个帮助 AI coding agents 在执行前理解人类请求的 request compiler 和 preflight gate。
 
 如果要更强调行为机制，可以补一句：
 
-> 它会优先利用历史 prompt、用户偏好和项目策略补全上下文；只有在关键信息不足时才触发最小必要追问。
+> 它会优先利用历史 prompt、用户偏好和项目策略补全上下文；只有在关键信息不足时才触发最小必要追问，否则直接编译成更强任务说明。

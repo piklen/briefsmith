@@ -2,52 +2,55 @@
 
 [English](README.md) | [简体中文](README.zh-CN.md)
 
-> A prompt quality gate that turns vague user requests into executable task briefs for AI coding hosts.
+> Briefsmith is a request compiler and preflight gate for AI coding agents.
 
-Briefsmith helps hosts like Codex, Claude Code, and OpenCode decide what to do with under-specified user input before execution starts.
+Stop letting coding agents guess what "optimize this" means.
 
-Instead of blindly acting on requests like "optimize this", Briefsmith tries to answer:
+Briefsmith sits between a human request and hosts like Codex, Claude Code, and OpenCode. When the request is under-specified, it decides whether to ask, compile, or skip before execution starts.
 
-1. Is the request already executable with high confidence?
-2. Can local prompt history, profile inference, and project policy fill the missing context?
-3. If not, what is the minimum follow-up question the host should ask?
+## Why It Exists
 
-That makes Briefsmith an execution preflight layer, not just a prompt rewriter.
+Most agent failures start before the model writes a single token:
 
-## Why
+- the request is missing a clear target
+- success criteria are implicit
+- constraints are unstated
+- output expectations are fuzzy
+- verification is never defined
 
-Weak AI output often comes from weak task framing, not weak models.
+That is not a wording problem. It is an execution-readiness problem.
 
-Typical failure mode:
+Briefsmith uses local prompt history, inferred preferences, and project policy to reduce ambiguity before the coding agent acts.
 
-- the user gives a vague instruction
-- the host guesses the intended target or constraints
-- important boundaries get lost
-- the output looks reasonable but solves the wrong problem
+## Core Decision: `ask / compile / skip`
 
-Briefsmith reduces that gap by using local context before execution.
+| Action | What it means |
+| --- | --- |
+| `ask` | Critical execution detail is still missing, so the host should ask a small follow-up question |
+| `compile` | Enough context exists to generate a stronger coding brief |
+| `skip` | Prompt checks are disabled for the current project |
 
 ## Core Workflow
 
 ```text
-local prompt history
--> retrieval and reuse
--> profile inference
--> project policy check
+human request
+-> slot detection
+-> history / profile / policy enrichment
 -> ask / compile / skip
--> host AI execution
+-> coding agent execution
 ```
 
-## What It Does
+## What The Product Is
 
-| Capability | Purpose |
-| --- | --- |
-| `import` / `find` / `show` / favorites / tags | Turn local prompt history into reusable context |
-| `profile refresh` | Infer recurring user preferences from prior prompts |
-| `compile` | Convert raw intent into a stronger task brief |
-| `preflight` | Decide whether the host should ask, compile, or skip |
-| `policy` / `start` / `stop` | Control project-level behavior and confidence thresholds |
-| `adapters` | Install host-facing integration for Claude Code, Codex, and OpenCode |
+Briefsmith is not the product because it can store prompts, tag prompts, or show favorites.
+
+The product is the preflight decision:
+
+- should the agent ask before it acts?
+- can the request be compiled into a stronger brief?
+- does local context already explain what the user likely means?
+
+History, profile, policy, and adapters exist to support that decision.
 
 Packaging rules:
 
@@ -73,9 +76,14 @@ npx briefsmith --help
 ### Run The Main Flow
 
 ```bash
+briefsmith preflight "optimize this import flow without changing external behavior" --host codex --json
+```
+
+If you want better local signal first:
+
+```bash
 briefsmith import
 briefsmith profile refresh
-briefsmith preflight "optimize this import flow without changing external behavior" --host codex --json
 ```
 
 ### Install Host Adapters
@@ -87,7 +95,7 @@ briefsmith adapters doctor
 
 ## How `preflight` Works
 
-`preflight` is the main runtime entrypoint for host adapters.
+`preflight` is the main runtime entrypoint.
 
 It can return three actions:
 
@@ -125,6 +133,15 @@ Most useful evidence fields:
 | `historyMatchCount` | Number of matching historical prompts |
 | `resolvedSlotSources` | Where each resolved slot came from |
 | `resolvedSlotConfidence` | Confidence score for each resolved slot |
+
+## Supporting Systems
+
+| Supporting system | Why it exists |
+| --- | --- |
+| `import` / `reindex` / `find` / `show` / favorites / tags | Give `preflight` reusable local history instead of forcing the host to guess |
+| `profile refresh` | Infer recurring user preferences that can stabilize future briefs |
+| `policy` / `start` / `stop` | Control when Briefsmith should ask, compile, or stay out of the way |
+| `adapters` | Install Briefsmith into Claude Code, Codex, and OpenCode without hand-editing host files |
 
 ## Host Adapters
 
@@ -191,10 +208,21 @@ briefsmith stop
 
 ## CLI Overview
 
-### Retrieval And History
+### Core Preflight
+
+```bash
+briefsmith preflight "optimize this import flow" --host codex --json
+briefsmith compile "optimize this import flow without changing external behavior" --framework superpowers
+briefsmith compile latest
+briefsmith compile history
+briefsmith compile show <compile-session-id>
+```
+
+### Supporting Context
 
 ```bash
 briefsmith import
+briefsmith reindex
 briefsmith find "optimize"
 briefsmith show <prompt-id>
 briefsmith star <prompt-id>
@@ -205,23 +233,13 @@ briefsmith tags remove <prompt-id> <tag>
 briefsmith tags list <prompt-id>
 ```
 
-### Profile And Compilation
+### Host Integration And Diagnostics
 
 ```bash
-briefsmith profile show
-briefsmith profile refresh
-briefsmith compile "optimize this import flow without changing external behavior" --framework superpowers
-briefsmith compile latest
-briefsmith compile history
-briefsmith compile show <compile-session-id>
-briefsmith preflight "optimize this import flow" --host codex --json
-```
-
-### Health Checks
-
-```bash
-briefsmith doctor
+briefsmith adapters list
+briefsmith adapters install all --scope project
 briefsmith adapters doctor
+briefsmith doctor
 ```
 
 Supported framework renderers:
