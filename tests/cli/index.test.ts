@@ -1,7 +1,11 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { mkdtempSync, symlinkSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { CLI_NAME } from "../../src/cli/command-name.js";
-import { runCli } from "../../src/cli/index.js";
+import { isCliEntrypoint, runCli } from "../../src/cli/index.js";
 
 test("runCli prints top-level help when no args are given", async () => {
   const output: string[] = [];
@@ -16,4 +20,28 @@ test("runCli prints top-level help when no args are given", async () => {
   assert.equal(output.some((line) => line.includes(`${CLI_NAME} import`)), true);
   assert.equal(output.some((line) => line.includes(`${CLI_NAME} compile`)), true);
   assert.equal(output.some((line) => line.includes(`${CLI_NAME} doctor`)), true);
+});
+
+test("runCli prints top-level help for --help and -h", async () => {
+  for (const flag of ["--help", "-h"]) {
+    const output: string[] = [];
+    const exitCode = await runCli([flag], {
+      cwd: process.cwd(),
+      stdout: (line) => output.push(line),
+      stderr: (line) => output.push(line),
+    });
+
+    assert.equal(exitCode, 0);
+    assert.equal(output.some((line) => line.includes(`${CLI_NAME} import`)), true);
+    assert.equal(output.some((line) => line.includes(`${CLI_NAME} compile`)), true);
+  }
+});
+
+test("isCliEntrypoint treats a symlinked bin path as the CLI entrypoint", () => {
+  const targetPath = fileURLToPath(new URL("../../src/cli/index.ts", import.meta.url));
+  const tempDir = mkdtempSync(join(tmpdir(), "briefsmith-cli-link-"));
+  const symlinkPath = join(tempDir, "briefsmith");
+  symlinkSync(targetPath, symlinkPath);
+
+  assert.equal(isCliEntrypoint(symlinkPath, new URL("../../src/cli/index.ts", import.meta.url).href), true);
 });

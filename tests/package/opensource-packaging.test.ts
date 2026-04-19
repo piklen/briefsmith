@@ -41,6 +41,16 @@ test("README does not contain workstation-specific absolute links", () => {
   assert.equal(readme.toLowerCase().includes("release workflow"), true);
 });
 
+test("repository includes bilingual README files with language selector links", () => {
+  const readme = readFileSync(join(REPO_ROOT, "README.md"), "utf8");
+  const readmeZh = readFileSync(join(REPO_ROOT, "README.zh-CN.md"), "utf8");
+
+  assert.equal(existsSync(join(REPO_ROOT, "README.zh-CN.md")), true);
+  assert.equal(readme.includes("[简体中文](README.zh-CN.md)"), true);
+  assert.equal(readmeZh.includes("[English](README.md)"), true);
+  assert.equal(readmeZh.includes("/Library/Code/AI/prompt"), false);
+});
+
 test("npm pack dry-run produces a minimal runtime package", () => {
   const raw = execFileSync("npm", ["pack", "--json", "--dry-run"], {
     cwd: REPO_ROOT,

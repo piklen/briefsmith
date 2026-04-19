@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 
+import { realpathSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import type { CliContext } from "../core/types.js";
 import { CLI_NAME } from "./command-name.js";
@@ -48,15 +49,32 @@ const helpLines = [
   `${CLI_NAME} adapters doctor [claude|codex] [--scope project|global]`
 ];
 
+function printHelp(context: CliContext): number {
+  for (const line of helpLines) {
+    context.stdout(line);
+  }
+  return 0;
+}
+
+export function isCliEntrypoint(argv1: string | undefined, importMetaUrl: string): boolean {
+  if (!argv1) {
+    return false;
+  }
+
+  const entryPath = fileURLToPath(importMetaUrl);
+  try {
+    return realpathSync(argv1) === realpathSync(entryPath);
+  } catch {
+    return argv1 === entryPath;
+  }
+}
+
 export async function runCli(args: string[], partialContext?: Partial<CliContext>): Promise<number> {
   const context = createCliContext(partialContext);
   const [command, ...rest] = args;
 
-  if (!command) {
-    for (const line of helpLines) {
-      context.stdout(line);
-    }
-    return 0;
+  if (!command || command === "--help" || command === "-h") {
+    return printHelp(context);
   }
 
   switch (command) {
@@ -130,7 +148,7 @@ export async function runCli(args: string[], partialContext?: Partial<CliContext
   }
 }
 
-if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
+if (isCliEntrypoint(process.argv[1], import.meta.url)) {
   const exitCode = await runCli(process.argv.slice(2));
   process.exitCode = exitCode;
 }
