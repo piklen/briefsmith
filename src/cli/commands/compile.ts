@@ -56,7 +56,8 @@ export async function runCompileCommand(
         resolvedSlots: decision.resolvedSlots,
         targetFramework: framework,
         targetHost: "cli",
-        usedHistoryIds: decision.usedHistoryIds
+        usedHistoryIds: decision.usedHistoryIds,
+        historySlotIds: decision.resolvedSlotHistoryIds
       });
       context.stdout(decision.text);
       return 0;
@@ -80,7 +81,8 @@ export async function runCompileCommand(
       resolvedSlots: decision.resolvedSlots,
       targetFramework: framework,
       targetHost: "cli",
-      usedHistoryIds: decision.usedHistoryIds
+      usedHistoryIds: decision.usedHistoryIds,
+      historySlotIds: decision.resolvedSlotHistoryIds
     });
 
     context.stdout(output);
@@ -147,6 +149,7 @@ function printCompileSession(
     targetFramework: string;
     targetHost: string;
     usedHistoryIds: string[];
+    historySlotIds: Record<string, string>;
     createdAt: string;
   },
   context: CliContext
@@ -158,6 +161,10 @@ function printCompileSession(
   context.stdout(`Raw Input: ${session.rawInput}`);
   if (session.usedHistoryIds.length > 0) {
     context.stdout(`Used History IDs: ${session.usedHistoryIds.join(", ")}`);
+  }
+  const historySlots = Object.entries(session.historySlotIds);
+  if (historySlots.length > 0) {
+    context.stdout(`History Slot IDs: ${historySlots.map(([slot, id]) => `${slot}=${id}`).join(" | ")}`);
   }
   if (session.followUpQuestions.length > 0) {
     context.stdout(`Follow-up Questions: ${session.followUpQuestions.join(" | ")}`);

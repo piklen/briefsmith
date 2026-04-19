@@ -80,6 +80,7 @@ export interface CompileSessionRecord {
   targetFramework: string;
   targetHost: string;
   usedHistoryIds: string[];
+  historySlotIds: Record<string, string>;
   createdAt: string;
 }
 

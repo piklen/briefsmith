@@ -21,7 +21,8 @@ test("runCli compile latest prints the most recent compile session", async () =>
     resolvedSlots: {},
     targetFramework: "plain",
     targetHost: "cli",
-    usedHistoryIds: []
+    usedHistoryIds: [],
+    historySlotIds: {}
   });
   repository.save({
     projectPath: process.cwd(),
@@ -31,7 +32,10 @@ test("runCli compile latest prints the most recent compile session", async () =>
     resolvedSlots: {},
     targetFramework: "superpowers",
     targetHost: "cli",
-    usedHistoryIds: []
+    usedHistoryIds: [],
+    historySlotIds: {
+      constraints: "codex:constraint-1"
+    }
   });
   database.close();
 
@@ -46,6 +50,7 @@ test("runCli compile latest prints the most recent compile session", async () =>
   assert.equal(exitCode, 0);
   assert.equal(output.some((line) => line.includes("second compile")), true);
   assert.equal(output.some((line) => line.includes("superpowers")), true);
+  assert.equal(output.some((line) => line.includes("History Slot IDs: constraints=codex:constraint-1")), true);
 });
 
 test("runCli compile history lists recent compile sessions", async () => {
@@ -61,7 +66,8 @@ test("runCli compile history lists recent compile sessions", async () => {
     resolvedSlots: {},
     targetFramework: "plain",
     targetHost: "cli",
-    usedHistoryIds: []
+    usedHistoryIds: [],
+    historySlotIds: {}
   });
   repository.save({
     projectPath: process.cwd(),
@@ -71,7 +77,10 @@ test("runCli compile history lists recent compile sessions", async () => {
     resolvedSlots: {},
     targetFramework: "gstack",
     targetHost: "cli",
-    usedHistoryIds: ["codex:1"]
+    usedHistoryIds: ["codex:1"],
+    historySlotIds: {
+      constraints: "codex:1"
+    }
   });
   database.close();
 
@@ -86,4 +95,39 @@ test("runCli compile history lists recent compile sessions", async () => {
   assert.equal(exitCode, 0);
   assert.equal(output.some((line) => line.includes("history compile one")), true);
   assert.equal(output.some((line) => line.includes("history compile two")), true);
+});
+
+test("runCli compile show prints persisted history slot provenance", async () => {
+  const homeDir = mkdtempSync(join(tmpdir(), "prompt-skill-home-"));
+  const database = new Database(databasePath(globalDataDir(homeDir)));
+  const repository = new CompileSessionRepository(database);
+
+  const session = repository.save({
+    projectPath: process.cwd(),
+    rawInput: "show compile",
+    compiledPrompt: "Task Goal\nshow compile",
+    followUpQuestions: [],
+    resolvedSlots: {
+      constraints: "keep API unchanged"
+    },
+    targetFramework: "plain",
+    targetHost: "cli",
+    usedHistoryIds: ["codex:constraint-2"],
+    historySlotIds: {
+      constraints: "codex:constraint-2"
+    }
+  });
+  database.close();
+
+  const output: string[] = [];
+  const exitCode = await runCli(["compile", "show", session.id], {
+    cwd: process.cwd(),
+    homeDir,
+    stdout: (line) => output.push(line),
+    stderr: (line) => output.push(line)
+  });
+
+  assert.equal(exitCode, 0);
+  assert.equal(output.some((line) => line.includes("Used History IDs: codex:constraint-2")), true);
+  assert.equal(output.some((line) => line.includes("History Slot IDs: constraints=codex:constraint-2")), true);
 });

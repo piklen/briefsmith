@@ -21,7 +21,10 @@ test("CompileSessionRepository saves and returns latest compile session", () => 
     },
     targetFramework: "superpowers",
     targetHost: "cli",
-    usedHistoryIds: ["codex:123"]
+    usedHistoryIds: ["codex:123"],
+    historySlotIds: {
+      constraints: "codex:123"
+    }
   });
 
   const latest = repository.latest();
@@ -30,6 +33,9 @@ test("CompileSessionRepository saves and returns latest compile session", () => 
   assert.notEqual(latest, null);
   assert.equal(latest?.rawInput, "optimize importer");
   assert.deepEqual(latest?.usedHistoryIds, ["codex:123"]);
+  assert.deepEqual(latest?.historySlotIds, {
+    constraints: "codex:123"
+  });
   assert.equal(latest?.targetFramework, "superpowers");
 });
 
@@ -70,4 +76,5 @@ test("CompileSessionRepository can return the latest session for a specific proj
   assert.notEqual(latest, null);
   assert.equal(latest?.projectPath, "/tmp/project-a");
   assert.equal(latest?.resolvedSlots.target, "importer");
+  assert.deepEqual(latest?.historySlotIds, {});
 });

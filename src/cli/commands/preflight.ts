@@ -146,7 +146,8 @@ export async function runPreflightCommand(args: string[], context: CliContext): 
         resolvedSlots: decision.resolvedSlots,
         targetFramework: options.framework,
         targetHost: options.host,
-        usedHistoryIds: decision.usedHistoryIds
+        usedHistoryIds: decision.usedHistoryIds,
+        historySlotIds: decision.resolvedSlotHistoryIds
       });
 
       return outputPayload(
@@ -194,7 +195,8 @@ export async function runPreflightCommand(args: string[], context: CliContext): 
       resolvedSlots: decision.resolvedSlots,
       targetFramework: options.framework,
       targetHost: options.host,
-      usedHistoryIds: decision.usedHistoryIds
+      usedHistoryIds: decision.usedHistoryIds,
+      historySlotIds: decision.resolvedSlotHistoryIds
     });
 
     return outputPayload(

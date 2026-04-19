@@ -12,6 +12,7 @@ interface SaveCompileSessionInput {
   targetFramework: string;
   targetHost: string;
   usedHistoryIds: string[];
+  historySlotIds?: Record<string, string>;
 }
 
 export class CompileSessionRepository {
@@ -28,6 +29,7 @@ export class CompileSessionRepository {
       targetFramework: input.targetFramework,
       targetHost: input.targetHost,
       usedHistoryIds: input.usedHistoryIds,
+      historySlotIds: input.historySlotIds ?? {},
       createdAt: new Date().toISOString()
     };
 
@@ -43,8 +45,9 @@ export class CompileSessionRepository {
           target_framework,
           target_host,
           used_history_ids_json,
+          history_slot_ids_json,
           created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `)
       .run(
         record.id,
@@ -56,6 +59,7 @@ export class CompileSessionRepository {
         record.targetFramework,
         record.targetHost,
         JSON.stringify(record.usedHistoryIds),
+        JSON.stringify(record.historySlotIds),
         record.createdAt
       );
 
@@ -79,6 +83,7 @@ export class CompileSessionRepository {
           target_framework AS targetFramework,
           target_host AS targetHost,
           used_history_ids_json AS usedHistoryIdsJson,
+          history_slot_ids_json AS historySlotIdsJson,
           created_at AS createdAt
         FROM compile_sessions
         WHERE project_path = ?
@@ -103,6 +108,7 @@ export class CompileSessionRepository {
           target_framework AS targetFramework,
           target_host AS targetHost,
           used_history_ids_json AS usedHistoryIdsJson,
+          history_slot_ids_json AS historySlotIdsJson,
           created_at AS createdAt
         FROM compile_sessions
         WHERE id = ?
@@ -125,6 +131,7 @@ export class CompileSessionRepository {
           target_framework AS targetFramework,
           target_host AS targetHost,
           used_history_ids_json AS usedHistoryIdsJson,
+          history_slot_ids_json AS historySlotIdsJson,
           created_at AS createdAt
         FROM compile_sessions
         ORDER BY rowid DESC
@@ -146,6 +153,7 @@ interface CompileSessionRow {
   targetFramework: string;
   targetHost: string;
   usedHistoryIdsJson: string;
+  historySlotIdsJson: string;
   createdAt: string;
 }
 
@@ -160,6 +168,7 @@ function hydrateCompileSession(row: CompileSessionRow): CompileSessionRecord {
     targetFramework: row.targetFramework,
     targetHost: row.targetHost,
     usedHistoryIds: JSON.parse(row.usedHistoryIdsJson) as string[],
+    historySlotIds: JSON.parse(row.historySlotIdsJson) as Record<string, string>,
     createdAt: row.createdAt
   };
 }

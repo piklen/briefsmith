@@ -46,6 +46,7 @@ export function applyMigrations(db: DatabaseSync): void {
       target_framework TEXT NOT NULL,
       target_host TEXT NOT NULL,
       used_history_ids_json TEXT NOT NULL,
+      history_slot_ids_json TEXT NOT NULL DEFAULT '{}',
       created_at TEXT NOT NULL
     ) STRICT;
   `);
@@ -56,5 +57,9 @@ export function applyMigrations(db: DatabaseSync): void {
 
   if (!compileSessionColumns.some((column) => column.name === "project_path")) {
     db.exec("ALTER TABLE compile_sessions ADD COLUMN project_path TEXT NOT NULL DEFAULT '';");
+  }
+
+  if (!compileSessionColumns.some((column) => column.name === "history_slot_ids_json")) {
+    db.exec("ALTER TABLE compile_sessions ADD COLUMN history_slot_ids_json TEXT NOT NULL DEFAULT '{}';");
   }
 }

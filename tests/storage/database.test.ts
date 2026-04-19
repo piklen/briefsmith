@@ -10,9 +10,13 @@ test("database migration creates prompt and profile tables", () => {
   const db = new Database(join(root, "skill.db"));
 
   const tables = db.listTables();
+  const compileSessionColumns = db.connection
+    .prepare("PRAGMA table_info(compile_sessions)")
+    .all() as Array<{ name: string }>;
 
   assert.equal(tables.includes("prompts"), true);
   assert.equal(tables.includes("profiles"), true);
   assert.equal(tables.includes("project_policies"), true);
   assert.equal(tables.includes("compile_sessions"), true);
+  assert.equal(compileSessionColumns.some((column) => column.name === "history_slot_ids_json"), true);
 });
