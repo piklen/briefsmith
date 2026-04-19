@@ -317,6 +317,19 @@ npm run check
 npm run build
 ```
 
+## 开源协作
+
+- 许可证：`MIT`，见 [`LICENSE`](/Library/Code/AI/prompt/LICENSE)
+- 贡献说明：见 [`CONTRIBUTING.md`](/Library/Code/AI/prompt/CONTRIBUTING.md)
+- 安全披露：见 [`SECURITY.md`](/Library/Code/AI/prompt/SECURITY.md)
+- 协作规范：见 [`CODE_OF_CONDUCT.md`](/Library/Code/AI/prompt/CODE_OF_CONDUCT.md)
+
+GitHub Actions 会在 `push` 和 `pull_request` 上执行：
+
+- `npm test`
+- `npm run check`
+- `npm run build`
+
 ## 当前边界
 
 - 只读取本地已落盘的会话/日志数据
