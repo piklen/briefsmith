@@ -5,7 +5,7 @@ import { ensureDir, pathExists } from "../utils/filesystem.js";
 import { projectDataDir } from "./paths.js";
 
 export type ProjectPolicyHost = "cli" | "claude" | "codex" | "opencode";
-const SLOT_NAMES: SlotName[] = ["target", "success_criteria", "constraints", "verification", "output_format"];
+const SLOT_NAMES: SlotName[] = ["target", "problem_signal", "success_criteria", "constraints", "verification", "output_format"];
 
 export const DEFAULT_HOST_CONFIDENCE_THRESHOLDS: Record<ProjectPolicyHost, number> = {
   cli: 0,
@@ -130,6 +130,7 @@ function defaultHostSlotConfidenceThresholds(
 function defaultSlotThresholdsForHost(threshold: number): Record<SlotName, number> {
   return {
     target: threshold,
+    problem_signal: threshold,
     success_criteria: threshold,
     constraints: threshold,
     verification: threshold,
@@ -156,6 +157,7 @@ function normalizeSlotThresholdsForHost(
   const defaults = defaultSlotThresholdsForHost(hostThreshold);
   return {
     target: normalizeThreshold(thresholds?.target, defaults.target),
+    problem_signal: normalizeThreshold(thresholds?.problem_signal, defaults.problem_signal),
     success_criteria: normalizeThreshold(thresholds?.success_criteria, defaults.success_criteria),
     constraints: normalizeThreshold(thresholds?.constraints, defaults.constraints),
     verification: normalizeThreshold(thresholds?.verification, defaults.verification),

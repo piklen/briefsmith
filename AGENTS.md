@@ -23,6 +23,7 @@
 当前已落地的核心槽位：
 
 - `target`
+- `problem_signal`
 - `success_criteria`
 - `constraints`
 - `verification`
@@ -30,7 +31,6 @@
 
 后续优先补强方向：
 
-- `problem_signal`
 - `non_goals`
 - `scope`
 - `risk_boundary`

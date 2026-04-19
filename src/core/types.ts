@@ -2,6 +2,7 @@ export type ToolName = "claude" | "codex" | "opencode" | "gemini";
 
 export type SlotName =
   | "target"
+  | "problem_signal"
   | "success_criteria"
   | "constraints"
   | "verification"

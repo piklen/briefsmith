@@ -40,6 +40,7 @@ test("README does not contain workstation-specific absolute links", () => {
   assert.equal(readme.includes("npx briefsmith"), true);
   assert.equal(readme.includes("request compiler and preflight gate"), true);
   assert.equal(readme.includes("ask / compile / skip"), true);
+  assert.equal(readme.includes("briefsmith demo preflight"), true);
   assert.equal(readme.toLowerCase().includes("release workflow"), true);
 });
 

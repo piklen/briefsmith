@@ -9,7 +9,7 @@ description: Use when an AI coding request is vague, under-specified, references
 
 - The user says something vague like "optimize this", "fix it", or "make it better"
 - The user wants to recover or reuse an older prompt
-- The current request is missing target, success criteria, constraints, or output format
+- The current request is missing target, problem signals, success criteria, constraints, or output format
 - The task would benefit from local prompt history before execution
 
 ## Core Job
@@ -18,7 +18,7 @@ Preflight rough AI coding requests: ask when key execution details are missing, 
 
 ## What to Do
 
-1. Check whether the request is missing target, success criteria, constraints, output format, or verification.
+1. Check whether the request is missing target, problem signals, success criteria, constraints, output format, or verification.
 2. Search local prompt history when the user refers to earlier prompts or recurring task patterns.
 3. Reuse stable constraints from project instructions and explicit user boundaries.
 4. If missing context would materially change execution quality, ask only the smallest set of follow-up questions needed.

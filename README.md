@@ -13,6 +13,7 @@ Briefsmith sits between a human request and hosts like Codex, Claude Code, and O
 Most agent failures start before the model writes a single token:
 
 - the request is missing a clear target
+- the visible problem signal is never stated
 - success criteria are implicit
 - constraints are unstated
 - output expectations are fuzzy
@@ -27,6 +28,7 @@ Briefsmith uses local prompt history, inferred preferences, and project policy t
 Before execution, Briefsmith tries to make these fields explicit:
 
 - `target`
+- `problem_signal`
 - `success_criteria`
 - `constraints`
 - `verification`
@@ -82,6 +84,18 @@ One-off usage:
 ```bash
 npx briefsmith --help
 ```
+
+### 30-Second Demo
+
+```bash
+briefsmith demo preflight
+```
+
+This runs the real preflight engine with isolated temp state and shows three host-native outcomes:
+
+- `ask`: stop a bugfix request before the host guesses the symptom
+- `compile`: turn a clear request into a structured coding brief
+- `skip`: show how project policy can disable preflight entirely
 
 ### Run The Main Flow
 
@@ -143,6 +157,77 @@ Most useful evidence fields:
 | `historyMatchCount` | Number of matching historical prompts |
 | `resolvedSlotSources` | Where each resolved slot came from |
 | `resolvedSlotConfidence` | Confidence score for each resolved slot |
+
+## Three Before / After Examples
+
+### 1. `ask`: stop a vague bugfix before the host guesses wrong
+
+Before:
+
+```text
+fix this checkout flow
+```
+
+After:
+
+```text
+action: ask
+why: missing problem_signal and constraints
+host should ask: "What exact symptom are you seeing?"
+```
+
+Why this matters:
+
+- without a visible problem signal, the agent can "fix" the wrong thing
+- `problem_signal` is now a first-class slot for bugfix and troubleshooting requests
+
+### 2. `compile`: keep the structure when the request is already strong
+
+Before:
+
+```text
+optimize this import flow, success means duplicate parsing happens only once, keep the external API unchanged, and verify with the relevant tests
+```
+
+After:
+
+```text
+action: compile
+
+Resolved Context
+- target: import flow
+- success_criteria: success means duplicate parsing happens only once
+- constraints: keep the external API unchanged
+- verification: verify with the relevant tests
+```
+
+Why this matters:
+
+- Briefsmith now keeps explicit constraints and verification in the compiled brief
+- the tool is not only for asking questions; it also preserves good requests
+
+### 3. `skip`: let the repo opt out completely
+
+Before:
+
+```json
+{
+  "enabled": false,
+  "mode": "off"
+}
+```
+
+After:
+
+```text
+action: skip
+why: project policy disabled preflight
+```
+
+Why this matters:
+
+- repos that do not want gating can disable it cleanly
+- `ask / compile / skip` is an intentional control surface, not hidden behavior
 
 ## Supporting Systems
 

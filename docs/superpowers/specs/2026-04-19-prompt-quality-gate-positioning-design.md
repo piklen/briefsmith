@@ -86,6 +86,7 @@
 一个更优的执行型提示词，通常至少要尽量明确：
 
 - `target`：做什么对象
+- `problem_signal`：当前具体看到的现象或问题信号
 - `success_criteria`：为什么做，怎样算完成
 - `constraints`：什么不能动
 - `verification`：完成后怎么验证结果
@@ -140,29 +141,15 @@
 ### 8.1 当前已落地槽位
 
 - `target`
+- `problem_signal`
 - `success_criteria`
 - `constraints`
 - `verification`
 - `output_format`
 
-这五个槽位已经足够支撑第一版“模糊输入预处理”。
+这六个槽位已经足够支撑第一版“模糊输入预处理”。
 
 ### 8.2 推荐优先新增的槽位
-
-#### `problem_signal`
-
-用于描述用户当前看到的现象或问题信号。
-
-适用场景：
-
-- 修 bug
-- 排障
-- 回归分析
-
-价值：
-
-- 区分“要优化”和“哪里真的有问题”
-- 避免 AI 只做表面重构
 
 #### `non_goals`
 

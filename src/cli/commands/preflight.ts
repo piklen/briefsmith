@@ -16,7 +16,7 @@ import { CLI_NAME } from "../command-name.js";
 type PreflightHost = "cli" | "claude" | "codex" | "opencode";
 type Framework = "plain" | "gsd" | "superpowers" | "gstack";
 type PreflightAction = "ask" | "compile" | "skip";
-const SLOT_ORDER: SlotName[] = ["target", "success_criteria", "constraints", "verification", "output_format"];
+const SLOT_ORDER: SlotName[] = ["target", "problem_signal", "success_criteria", "constraints", "verification", "output_format"];
 
 interface PreflightPayload {
   action: PreflightAction;

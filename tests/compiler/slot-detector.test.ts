@@ -39,6 +39,12 @@ test("detectMissingSlots recognizes Chinese constraint phrases", () => {
   assert.equal(result.missing.includes("constraints"), false);
 });
 
+test("detectMissingSlots flags bugfix prompts missing problem signals", () => {
+  const result = detectMissingSlots("修复这个登录流程，不要改变外部接口，并运行相关测试验证");
+
+  assert.equal(result.missing.includes("problem_signal"), true);
+});
+
 test("compileOrClarify auto-fills high-confidence optimize requests", () => {
   const result = compileOrClarify(
     "优化一下这个导入逻辑",
@@ -57,4 +63,35 @@ test("compileOrClarify auto-fills high-confidence optimize requests", () => {
   assert.equal(result.resolvedSlotConfidence.success_criteria, 0.68);
   assert.equal(result.resolvedSlotConfidence.constraints, 0.82);
   assert.equal(result.resolvedSlotConfidence.verification, 0.78);
+});
+
+test("compileOrClarify keeps explicit constraints and verification in the compiled brief", () => {
+  const result = compileOrClarify(
+    "optimize this import flow, keep the external API unchanged, and verify with the relevant tests",
+    {
+      preferred_language: "en"
+    },
+    []
+  );
+
+  assert.equal(result.kind, "compiled");
+  assert.equal(result.resolvedSlots.target?.includes("import flow"), true);
+  assert.equal(result.resolvedSlots.constraints?.includes("external API"), true);
+  assert.equal(result.resolvedSlots.verification?.includes("relevant tests"), true);
+  assert.equal(result.text.includes("constraints"), true);
+  assert.equal(result.text.includes("verification"), true);
+});
+
+test("compileOrClarify asks for problem signals on bugfix prompts without visible symptoms", () => {
+  const result = compileOrClarify(
+    "修复这个登录流程，不要改变外部接口，并运行相关测试验证",
+    {
+      preferred_language: "zh-CN"
+    },
+    []
+  );
+
+  assert.equal(result.kind, "questions");
+  assert.equal(result.missing.includes("problem_signal"), true);
+  assert.equal(result.followUpQuestions.some((question) => question.includes("现象")), true);
 });

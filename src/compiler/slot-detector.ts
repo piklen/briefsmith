@@ -1,5 +1,7 @@
 import type { MissingSlotResult, SlotName } from "../core/types.js";
 
+const PROBLEM_DRIVEN_PATTERN = /(fix|debug|diagnos|investigat|troubleshoot|repair|bug|broken|error|failure|failing|regression|why\s+is|why\s+does|修复|排查|定位|调试|异常|报错|故障|失败|回归|为什么)/i;
+const PROBLEM_SIGNAL_PATTERN = /(error|exception|timeout|slow|slower|latency|crash|stuck|failing|fails|failed|not working|wrong result|500|404|regression|panic|报错|异常|超时|变慢|崩溃|卡住|失败|不生效|无响应|回归|告警|堆栈|慢)/i;
 const SUCCESS_PATTERN = /(so that|success|expected|faster|readability|performance|性能|结果|标准|减少|提升|合并|消除重复|更快|更清晰)/i;
 const CONSTRAINT_PATTERN = /(without|must|keep|do not|don't|保持|不要|不能|不改变|不修改|保留)/i;
 const VERIFICATION_PATTERN = /(test|tests|testing|verify|verification|validated|validation|benchmark|benchmarks|measure|measured|regression|smoke test|assert|测试|验证|回归|基准|压测|对比|复现|复测)/i;
@@ -19,6 +21,10 @@ export function detectMissingSlots(rawInput: string): MissingSlotResult {
 
   if (!SUCCESS_PATTERN.test(input)) {
     missing.push("success_criteria");
+  }
+
+  if (PROBLEM_DRIVEN_PATTERN.test(input) && !PROBLEM_SIGNAL_PATTERN.test(input)) {
+    missing.push("problem_signal");
   }
 
   if (!CONSTRAINT_PATTERN.test(input)) {

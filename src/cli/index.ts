@@ -7,6 +7,7 @@ import { CLI_NAME } from "./command-name.js";
 import { createCliContext } from "./support.js";
 import { runCompileCommand, runCompileSessionsCommand } from "./commands/compile.js";
 import { runDoctorCommand } from "./commands/doctor.js";
+import { runDemoCommand } from "./commands/demo.js";
 import { runAdaptersCommand } from "./commands/adapters.js";
 import { runFavoritesCommand } from "./commands/favorites.js";
 import { runFindCommand } from "./commands/find.js";
@@ -36,6 +37,10 @@ const helpSections: HelpSection[] = [
       {
         command: `${CLI_NAME} preflight "<raw input>" [--host cli|claude|codex|opencode] [--json] [--framework plain|gsd|superpowers|gstack]`,
         description: "main entrypoint: ask, compile, or skip before agent execution"
+      },
+      {
+        command: `${CLI_NAME} demo preflight [--host cli|claude|codex|opencode]`,
+        description: "run a zero-config demo of ask, compile, and skip using the real engine"
       },
       {
         command: `${CLI_NAME} compile "<raw input>" [--framework plain|gsd|superpowers|gstack]`,
@@ -70,7 +75,7 @@ const helpSections: HelpSection[] = [
         description: "set the default confidence threshold for one host"
       },
       {
-        command: `${CLI_NAME} policy threshold <cli|claude|codex|opencode> <target|success_criteria|constraints|verification|output_format> <value>`,
+        command: `${CLI_NAME} policy threshold <cli|claude|codex|opencode> <target|problem_signal|success_criteria|constraints|verification|output_format> <value>`,
         description: "set the confidence threshold for one host slot"
       },
       { command: `${CLI_NAME} start`, description: "enable prompt checks for the current project" },
@@ -124,6 +129,7 @@ function printHelp(context: CliContext): number {
   context.stdout(
     `  ${preflightExample.padEnd(tipWidth)}  # main entrypoint for host-side decisioning`
   );
+  context.stdout(`  ${`${CLI_NAME} demo preflight`.padEnd(tipWidth)}  # 30-second zero-config demo of ask / compile / skip`);
   context.stdout(`  ${`${CLI_NAME} import`.padEnd(tipWidth)}  # optional: load local history so preflight has more signal`);
   context.stdout(`  ${CLI_NAME} help`.padEnd(tipWidth) + "  # show this help output");
   context.stdout(`  ${CLI_NAME} --help`.padEnd(tipWidth) + "  # same as above");
@@ -198,6 +204,8 @@ export async function runCli(args: string[], partialContext?: Partial<CliContext
     }
     case "preflight":
       return runPreflightCommand(rest, context);
+    case "demo":
+      return runDemoCommand(rest, context);
     case "profile":
       if (rest[0] === "show") {
         return runProfileShowCommand(context);
