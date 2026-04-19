@@ -1,0 +1,42 @@
+name: Feature request
+description: Propose a focused improvement to Briefsmith.
+title: "[Feature]: "
+labels:
+  - enhancement
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Briefsmith is intentionally narrow.
+
+        Good requests usually improve one of these areas:
+        - ask / compile / skip decisions
+        - prompt evidence quality
+        - host integration
+        - open-source contributor workflow
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem to solve
+      description: What user pain or workflow gap does this address?
+      placeholder: When a request is vague, Briefsmith still cannot explain why it chose ask vs compile clearly enough.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed change
+      description: What concrete behavior or UX should change?
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: What workarounds or other approaches have you considered?
+  - type: textarea
+    id: success
+    attributes:
+      label: Success criteria
+      description: How would we know this feature is actually useful?
+

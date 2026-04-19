@@ -1,0 +1,48 @@
+name: Bug report
+description: Report a real product bug in Briefsmith's preflight or compile flow.
+title: "[Bug]: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a bug.
+
+        Please keep the report concrete: what request you ran, what Briefsmith returned, and why that result was wrong.
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: What went wrong?
+      placeholder: Briefsmith asked / compiled / skipped in a way that broke the expected workflow.
+    validations:
+      required: true
+  - type: textarea
+    id: command
+    attributes:
+      label: Exact command or host request
+      description: Include the exact CLI command or host-side request that triggered the issue.
+      placeholder: briefsmith preflight "optimize this import flow" --host codex --json
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual result
+      description: Paste the real output or describe the incorrect behavior.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected result
+      description: What should Briefsmith have done instead?
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: Extra context
+      description: Add repo context, host, version, or history evidence that helps reproduction.
+

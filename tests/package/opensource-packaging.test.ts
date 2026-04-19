@@ -99,3 +99,9 @@ test("repository includes a documented release workflow", () => {
   assert.equal(existsSync(join(REPO_ROOT, ".github", "workflows", "release.yml")), true);
   assert.equal(existsSync(join(REPO_ROOT, ".changeset", "README.md")), true);
 });
+
+test("repository includes GitHub issue templates for open-source collaboration", () => {
+  assert.equal(existsSync(join(REPO_ROOT, ".github", "ISSUE_TEMPLATE", "bug_report.yml")), true);
+  assert.equal(existsSync(join(REPO_ROOT, ".github", "ISSUE_TEMPLATE", "feature_request.yml")), true);
+  assert.equal(existsSync(join(REPO_ROOT, ".github", "ISSUE_TEMPLATE", "config.yml")), true);
+});
