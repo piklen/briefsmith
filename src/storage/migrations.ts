@@ -38,6 +38,7 @@ export function applyMigrations(db: DatabaseSync): void {
 
     CREATE TABLE IF NOT EXISTS compile_sessions (
       id TEXT PRIMARY KEY,
+      project_path TEXT NOT NULL,
       raw_input TEXT NOT NULL,
       compiled_prompt TEXT NOT NULL,
       follow_up_questions_json TEXT NOT NULL,
@@ -48,4 +49,12 @@ export function applyMigrations(db: DatabaseSync): void {
       created_at TEXT NOT NULL
     ) STRICT;
   `);
+
+  const compileSessionColumns = db
+    .prepare("PRAGMA table_info(compile_sessions)")
+    .all() as Array<{ name: string }>;
+
+  if (!compileSessionColumns.some((column) => column.name === "project_path")) {
+    db.exec("ALTER TABLE compile_sessions ADD COLUMN project_path TEXT NOT NULL DEFAULT '';");
+  }
 }

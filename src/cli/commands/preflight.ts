@@ -2,6 +2,7 @@ import { databasePath, globalDataDir } from "../../config/paths.js";
 import { buildFollowUpQuestions } from "../../compiler/clarifier.js";
 import { readProjectPolicy } from "../../config/project-policy.js";
 import { compileOrClarify } from "../../compiler/compiler.js";
+import { isContinuationOnlyRequest } from "../../compiler/continuation.js";
 import { retrievePromptEntries } from "../../compiler/history-retriever.js";
 import type { CliContext, SlotName, SlotResolutionSource } from "../../core/types.js";
 import { renderGsdContext } from "../../frameworks/gsd.js";
@@ -94,6 +95,9 @@ export async function runPreflightCommand(args: string[], context: CliContext): 
 
   try {
     const profile = profileRepository.load("global");
+    const continuationSlots = isContinuationOnlyRequest(options.rawInput)
+      ? (compileSessionRepository.latestForProject(context.cwd)?.resolvedSlots ?? {})
+      : {};
     const historyMatches = retrievePromptEntries(promptRepository, options.rawInput, 3, {
       projectPath: context.cwd
     });
@@ -103,7 +107,7 @@ export async function runPreflightCommand(args: string[], context: CliContext): 
       tool: entry.tool,
       preview: buildPromptPreview(entry.promptText)
     }));
-    const decision = compileOrClarify(options.rawInput, profile.inferred, snippets);
+    const decision = compileOrClarify(options.rawInput, profile.inferred, snippets, continuationSlots);
     const usedHistoryIds = historyMatches.map((row) => row.id);
     const lowConfidenceSlots = findLowConfidenceSlots(
       decision.resolvedSlotConfidence,
@@ -122,6 +126,7 @@ export async function runPreflightCommand(args: string[], context: CliContext): 
 
     if (askSlots.length > 0) {
       compileSessionRepository.save({
+        projectPath: context.cwd,
         rawInput: options.rawInput,
         compiledPrompt: "",
         followUpQuestions: questions,
@@ -168,6 +173,7 @@ export async function runPreflightCommand(args: string[], context: CliContext): 
     );
 
     compileSessionRepository.save({
+      projectPath: context.cwd,
       rawInput: options.rawInput,
       compiledPrompt,
       followUpQuestions: [],

@@ -12,6 +12,7 @@ test("CompileSessionRepository saves and returns latest compile session", () => 
   const repository = new CompileSessionRepository(database);
 
   repository.save({
+    projectPath: root,
     rawInput: "optimize importer",
     compiledPrompt: "Task Goal\noptimize importer",
     followUpQuestions: ["what is the target?"],
@@ -30,4 +31,43 @@ test("CompileSessionRepository saves and returns latest compile session", () => 
   assert.equal(latest?.rawInput, "optimize importer");
   assert.deepEqual(latest?.usedHistoryIds, ["codex:123"]);
   assert.equal(latest?.targetFramework, "superpowers");
+});
+
+test("CompileSessionRepository can return the latest session for a specific project", () => {
+  const root = mkdtempSync(join(tmpdir(), "prompt-skill-compile-"));
+  const database = new Database(join(root, "skill.db"));
+  const repository = new CompileSessionRepository(database);
+
+  repository.save({
+    rawInput: "optimize importer",
+    compiledPrompt: "Task Goal\noptimize importer",
+    followUpQuestions: [],
+    resolvedSlots: {
+      target: "importer"
+    },
+    projectPath: "/tmp/project-a",
+    targetFramework: "plain",
+    targetHost: "cli",
+    usedHistoryIds: []
+  });
+
+  repository.save({
+    rawInput: "optimize checkout",
+    compiledPrompt: "Task Goal\noptimize checkout",
+    followUpQuestions: [],
+    resolvedSlots: {
+      target: "checkout flow"
+    },
+    projectPath: "/tmp/project-b",
+    targetFramework: "plain",
+    targetHost: "cli",
+    usedHistoryIds: []
+  });
+
+  const latest = repository.latestForProject("/tmp/project-a");
+  database.close();
+
+  assert.notEqual(latest, null);
+  assert.equal(latest?.projectPath, "/tmp/project-a");
+  assert.equal(latest?.resolvedSlots.target, "importer");
 });

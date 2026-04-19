@@ -14,6 +14,7 @@ test("runCli compile latest prints the most recent compile session", async () =>
   const repository = new CompileSessionRepository(database);
 
   repository.save({
+    projectPath: process.cwd(),
     rawInput: "first compile",
     compiledPrompt: "Task Goal\nfirst compile",
     followUpQuestions: [],
@@ -23,6 +24,7 @@ test("runCli compile latest prints the most recent compile session", async () =>
     usedHistoryIds: []
   });
   repository.save({
+    projectPath: process.cwd(),
     rawInput: "second compile",
     compiledPrompt: "Task Goal\nsecond compile",
     followUpQuestions: [],
@@ -52,6 +54,7 @@ test("runCli compile history lists recent compile sessions", async () => {
   const repository = new CompileSessionRepository(database);
 
   repository.save({
+    projectPath: process.cwd(),
     rawInput: "history compile one",
     compiledPrompt: "Task Goal\nhistory compile one",
     followUpQuestions: [],
@@ -61,6 +64,7 @@ test("runCli compile history lists recent compile sessions", async () => {
     usedHistoryIds: []
   });
   repository.save({
+    projectPath: process.cwd(),
     rawInput: "history compile two",
     compiledPrompt: "Task Goal\nhistory compile two",
     followUpQuestions: [],

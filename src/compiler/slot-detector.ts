@@ -1,4 +1,5 @@
 import type { MissingSlotResult, SlotName } from "../core/types.js";
+import { isContinuationOnlyRequest } from "./continuation.js";
 
 const PROBLEM_DRIVEN_PATTERN = /(fix|debug|diagnos|investigat|troubleshoot|repair|bug|broken|error|failure|failing|regression|why\s+is|why\s+does|修复|排查|定位|调试|异常|报错|故障|失败|回归|为什么)/i;
 const PROBLEM_SIGNAL_PATTERN = /(error|exception|timeout|slow|slower|latency|crash|stuck|failing|fails|failed|not working|wrong result|500|404|regression|panic|报错|异常|超时|变慢|崩溃|卡住|失败|不生效|无响应|回归|告警|堆栈|慢)/i;
@@ -15,7 +16,7 @@ export function detectMissingSlots(rawInput: string): MissingSlotResult {
   const input = rawInput.trim();
   const missing: SlotName[] = [];
 
-  if (input.length === 0 || TARGET_PATTERN.test(input) || ACTION_ONLY_PATTERN.test(input)) {
+  if (input.length === 0 || TARGET_PATTERN.test(input) || ACTION_ONLY_PATTERN.test(input) || isContinuationOnlyRequest(input)) {
     missing.push("target");
   }
 

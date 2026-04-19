@@ -365,6 +365,54 @@ test("runCli preflight ignores cross-project history when enriching the current 
   assert.equal(payload.evidence.resolvedSlotSources.problem_signal, undefined);
 });
 
+test("runCli preflight reuses the latest same-project compile session for continuation requests", async () => {
+  const root = mkdtempSync(join(tmpdir(), "prompt-skill-project-"));
+  const homeDir = mkdtempSync(join(tmpdir(), "prompt-skill-home-"));
+  const database = new Database(databasePath(globalDataDir(homeDir)));
+  const compileSessionRepository = new CompileSessionRepository(database);
+
+  compileSessionRepository.save({
+    rawInput: "优化这个导入逻辑，保持外部命令行为不变，并运行相关测试验证",
+    compiledPrompt: "Task Goal\n优化这个导入逻辑",
+    followUpQuestions: [],
+    resolvedSlots: {
+      target: "导入逻辑",
+      constraints: "不要改变外部命令行为",
+      verification: "运行相关测试验证"
+    },
+    projectPath: root,
+    targetFramework: "plain",
+    targetHost: "codex",
+    usedHistoryIds: []
+  });
+  database.close();
+
+  const output: string[] = [];
+  const exitCode = await runCli(["preflight", "继续优化", "--host", "cli", "--json"], {
+    cwd: root,
+    homeDir,
+    stdout: (line) => output.push(line),
+    stderr: (line) => output.push(line)
+  });
+
+  const payload = JSON.parse(output.join("\n")) as {
+    action: string;
+    resolvedSlots: Record<string, string>;
+    evidence: {
+      resolvedSlotSources: Record<string, string>;
+    };
+  };
+
+  assert.equal(exitCode, 0);
+  assert.equal(payload.action, "compile");
+  assert.equal(payload.resolvedSlots.target, "导入逻辑");
+  assert.equal(payload.resolvedSlots.constraints, "不要改变外部命令行为");
+  assert.equal(payload.resolvedSlots.verification, "运行相关测试验证");
+  assert.equal(payload.evidence.resolvedSlotSources.target, "session");
+  assert.equal(payload.evidence.resolvedSlotSources.constraints, "session");
+  assert.equal(payload.evidence.resolvedSlotSources.verification, "session");
+});
+
 test("runCli preflight respects project-level confidence threshold overrides", async () => {
   const root = mkdtempSync(join(tmpdir(), "prompt-skill-project-"));
   const promptSkillDir = join(root, ".prompt-skill");

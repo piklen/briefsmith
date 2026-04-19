@@ -3,7 +3,9 @@ import { fileURLToPath } from "node:url";
 import { globalDataDir, databasePath } from "../../config/paths.js";
 import { readProjectPolicy } from "../../config/project-policy.js";
 import { compileOrClarify } from "../../compiler/compiler.js";
+import { isContinuationOnlyRequest } from "../../compiler/continuation.js";
 import { retrievePromptSnippets } from "../../compiler/history-retriever.js";
+import { CompileSessionRepository } from "../../storage/compile-session-repository.js";
 import { Database } from "../../storage/database.js";
 import { ProfileRepository } from "../../storage/profile-repository.js";
 import { PromptRepository } from "../../storage/prompt-repository.js";
@@ -43,13 +45,17 @@ export async function evaluateClaudePromptHook(
   const database = new Database(databasePath(globalDataDir(runtime.homeDir)));
   const promptRepository = new PromptRepository(database);
   const profileRepository = new ProfileRepository(database);
+  const compileSessionRepository = new CompileSessionRepository(database);
 
   try {
     const profile = profileRepository.load("global");
+    const continuationSlots = isContinuationOnlyRequest(input.prompt)
+      ? (compileSessionRepository.latestForProject(runtime.cwd)?.resolvedSlots ?? {})
+      : {};
     const snippets = retrievePromptSnippets(promptRepository, input.prompt, 3, {
       projectPath: runtime.cwd
     });
-    const decision = compileOrClarify(input.prompt, profile.inferred, snippets);
+    const decision = compileOrClarify(input.prompt, profile.inferred, snippets, continuationSlots);
 
     if (decision.kind === "questions") {
       return {

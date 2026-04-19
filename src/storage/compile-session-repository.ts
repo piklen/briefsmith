@@ -1,8 +1,10 @@
+import { resolve } from "node:path";
 import { randomUUID } from "node:crypto";
 import type { CompileSessionRecord } from "../core/types.js";
 import type { Database } from "./database.js";
 
 interface SaveCompileSessionInput {
+  projectPath: string;
   rawInput: string;
   compiledPrompt: string;
   followUpQuestions: string[];
@@ -18,6 +20,7 @@ export class CompileSessionRepository {
   save(input: SaveCompileSessionInput): CompileSessionRecord {
     const record: CompileSessionRecord = {
       id: randomUUID(),
+      projectPath: resolve(input.projectPath),
       rawInput: input.rawInput,
       compiledPrompt: input.compiledPrompt,
       followUpQuestions: input.followUpQuestions,
@@ -32,6 +35,7 @@ export class CompileSessionRepository {
       .prepare(`
         INSERT INTO compile_sessions (
           id,
+          project_path,
           raw_input,
           compiled_prompt,
           follow_up_questions_json,
@@ -40,10 +44,11 @@ export class CompileSessionRepository {
           target_host,
           used_history_ids_json,
           created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `)
       .run(
         record.id,
+        record.projectPath,
         record.rawInput,
         record.compiledPrompt,
         JSON.stringify(record.followUpQuestions),
@@ -61,11 +66,36 @@ export class CompileSessionRepository {
     return this.list(1)[0] ?? null;
   }
 
+  latestForProject(projectPath: string): CompileSessionRecord | null {
+    const row = this.database.connection
+      .prepare(`
+        SELECT
+          id,
+          project_path AS projectPath,
+          raw_input AS rawInput,
+          compiled_prompt AS compiledPrompt,
+          follow_up_questions_json AS followUpQuestionsJson,
+          resolved_slots_json AS resolvedSlotsJson,
+          target_framework AS targetFramework,
+          target_host AS targetHost,
+          used_history_ids_json AS usedHistoryIdsJson,
+          created_at AS createdAt
+        FROM compile_sessions
+        WHERE project_path = ?
+        ORDER BY rowid DESC
+        LIMIT 1
+      `)
+      .get(resolve(projectPath)) as CompileSessionRow | undefined;
+
+    return row ? hydrateCompileSession(row) : null;
+  }
+
   getById(id: string): CompileSessionRecord | null {
     const row = this.database.connection
       .prepare(`
         SELECT
           id,
+          project_path AS projectPath,
           raw_input AS rawInput,
           compiled_prompt AS compiledPrompt,
           follow_up_questions_json AS followUpQuestionsJson,
@@ -87,6 +117,7 @@ export class CompileSessionRepository {
       .prepare(`
         SELECT
           id,
+          project_path AS projectPath,
           raw_input AS rawInput,
           compiled_prompt AS compiledPrompt,
           follow_up_questions_json AS followUpQuestionsJson,
@@ -107,6 +138,7 @@ export class CompileSessionRepository {
 
 interface CompileSessionRow {
   id: string;
+  projectPath: string;
   rawInput: string;
   compiledPrompt: string;
   followUpQuestionsJson: string;
@@ -120,6 +152,7 @@ interface CompileSessionRow {
 function hydrateCompileSession(row: CompileSessionRow): CompileSessionRecord {
   return {
     id: row.id,
+    projectPath: row.projectPath,
     rawInput: row.rawInput,
     compiledPrompt: row.compiledPrompt,
     followUpQuestions: JSON.parse(row.followUpQuestionsJson) as string[],

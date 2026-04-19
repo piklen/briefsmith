@@ -105,6 +105,7 @@ const GENERIC_TARGETS = new Set([
 const INPUT_CONFIDENCE = 0.96;
 const HISTORY_CONFIDENCE = 0.82;
 const HISTORY_PROBLEM_SIGNAL_CONFIDENCE = 0.76;
+const SESSION_CONFIDENCE = 0.9;
 const HEURISTIC_CONFIDENCE = 0.68;
 const VERIFICATION_CONFIDENCE = 0.78;
 const DEFAULT_CONFIDENCE = 0.55;
@@ -139,7 +140,8 @@ export function compilePrompt(input: CompilePromptInput): string {
 export function compileOrClarify(
   rawInput: string,
   inferredDefaults: Record<string, unknown>,
-  retrievedPromptSnippets: string[]
+  retrievedPromptSnippets: string[],
+  continuationSlots: Partial<Record<SlotName, string>> = {}
 ): CompileDecision {
   const missingResult = detectMissingSlots(rawInput);
   const explicit = extractExplicitSlotValues(rawInput);
@@ -147,7 +149,8 @@ export function compileOrClarify(
     rawInput,
     missingResult.missing,
     inferredDefaults,
-    retrievedPromptSnippets
+    retrievedPromptSnippets,
+    continuationSlots
   );
   const resolvedSlots = {
     ...resolution.values,
@@ -252,7 +255,8 @@ function resolveMissingSlots(
   rawInput: string,
   missing: SlotName[],
   inferredDefaults: Record<string, unknown>,
-  retrievedPromptSnippets: string[]
+  retrievedPromptSnippets: string[],
+  continuationSlots: Partial<Record<SlotName, string>>
 ): {
   values: Partial<Record<SlotName, string>>;
   sources: Partial<Record<SlotName, SlotResolutionSource>>;
@@ -263,6 +267,14 @@ function resolveMissingSlots(
   const confidence: Partial<Record<SlotName, number>> = {};
 
   for (const slot of missing) {
+    const continuationValue = continuationSlots[slot];
+    if (continuationValue) {
+      values[slot] = continuationValue;
+      sources[slot] = "session";
+      confidence[slot] = SESSION_CONFIDENCE;
+      continue;
+    }
+
     if (slot === "target") {
       const target = inferTarget(rawInput);
       if (target) {

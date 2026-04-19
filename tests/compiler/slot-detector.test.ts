@@ -10,6 +10,12 @@ test("detectMissingSlots flags vague prompts missing success criteria and constr
   assert.equal(result.needsFollowUp, true);
 });
 
+test("detectMissingSlots treats continuation-only optimize requests as missing a target", () => {
+  const result = detectMissingSlots("继续优化");
+
+  assert.equal(result.missing.includes("target"), true);
+});
+
 test("compilePrompt emits a structured task brief", () => {
   const output = compilePrompt({
     rawInput: "optimize this query",
@@ -108,4 +114,27 @@ test("compileOrClarify asks for problem signals on bugfix prompts without visibl
   assert.equal(result.kind, "questions");
   assert.equal(result.missing.includes("problem_signal"), true);
   assert.equal(result.followUpQuestions.some((question) => question.includes("现象")), true);
+});
+
+test("compileOrClarify can reuse continuation context from the latest same-project session", () => {
+  const result = compileOrClarify(
+    "继续优化",
+    {
+      preferred_language: "zh-CN"
+    },
+    [],
+    {
+      target: "导入逻辑",
+      constraints: "不要改变外部命令行为",
+      verification: "运行相关测试验证"
+    }
+  );
+
+  assert.equal(result.kind, "compiled");
+  assert.equal(result.resolvedSlots.target, "导入逻辑");
+  assert.equal(result.resolvedSlots.constraints, "不要改变外部命令行为");
+  assert.equal(result.resolvedSlots.verification, "运行相关测试验证");
+  assert.equal(result.resolvedSlotSources.target, "session");
+  assert.equal(result.resolvedSlotSources.constraints, "session");
+  assert.equal(result.resolvedSlotSources.verification, "session");
 });

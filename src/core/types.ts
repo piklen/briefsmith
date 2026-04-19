@@ -8,7 +8,7 @@ export type SlotName =
   | "verification"
   | "output_format";
 
-export type SlotResolutionSource = "input" | "history" | "heuristic" | "default";
+export type SlotResolutionSource = "input" | "history" | "heuristic" | "default" | "session";
 
 export interface CliContext {
   cwd: string;
@@ -65,6 +65,7 @@ export interface CompileDecision {
 
 export interface CompileSessionRecord {
   id: string;
+  projectPath: string;
   rawInput: string;
   compiledPrompt: string;
   followUpQuestions: string[];

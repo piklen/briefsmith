@@ -6,6 +6,7 @@ import { tmpdir } from "node:os";
 import { installClaudeAdapter } from "../../src/host/claude/install.js";
 import { evaluateClaudePromptHook } from "../../src/host/claude/hook-entry.js";
 import { renderPromptMemoryClaudeSkill } from "../../src/host/prompt-memory-skill.js";
+import { CompileSessionRepository } from "../../src/storage/compile-session-repository.js";
 import { Database } from "../../src/storage/database.js";
 import { PromptRepository } from "../../src/storage/prompt-repository.js";
 import { ProfileRepository } from "../../src/storage/profile-repository.js";
@@ -198,6 +199,57 @@ test("evaluateClaudePromptHook auto-fills high-confidence missing context instea
     assert.equal(result?.decision ?? "", "");
     assert.equal(
       result?.hookSpecificOutput?.additionalContext?.includes("外部行为") ?? false,
+      true
+    );
+  } finally {
+    database.close();
+  }
+});
+
+test("evaluateClaudePromptHook reuses the latest same-project compile session for continuation prompts", async () => {
+  const root = mkdtempSync(join(tmpdir(), "prompt-skill-hook-"));
+  const dataDir = join(root, "Library", "Application Support", "PromptSkill");
+  const database = new Database(join(dataDir, "skill.db"));
+
+  const compileSessionRepository = new CompileSessionRepository(database);
+  compileSessionRepository.save({
+    rawInput: "优化这个导入逻辑，保持外部命令行为不变，并运行相关测试验证",
+    compiledPrompt: "Task Goal\n优化这个导入逻辑",
+    followUpQuestions: [],
+    resolvedSlots: {
+      target: "导入逻辑",
+      constraints: "不要改变外部命令行为",
+      verification: "运行相关测试验证"
+    },
+    projectPath: root,
+    targetFramework: "plain",
+    targetHost: "claude",
+    usedHistoryIds: []
+  });
+
+  try {
+    const result = await evaluateClaudePromptHook(
+      {
+        cwd: root,
+        prompt: "继续优化",
+        session_id: "session-4",
+        transcript_path: join(root, "session.jsonl"),
+        permission_mode: "default",
+        hook_event_name: "UserPromptSubmit"
+      },
+      {
+        cwd: root,
+        homeDir: root
+      }
+    );
+
+    assert.equal(result?.decision ?? "", "");
+    assert.equal(
+      result?.hookSpecificOutput?.additionalContext?.includes("导入逻辑") ?? false,
+      true
+    );
+    assert.equal(
+      result?.hookSpecificOutput?.additionalContext?.includes("不要改变外部命令行为") ?? false,
       true
     );
   } finally {

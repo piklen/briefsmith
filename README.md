@@ -21,9 +21,11 @@ Most agent failures start before the model writes a single token:
 
 That is not a wording problem. It is an execution-readiness problem.
 
-Briefsmith uses repo-local prompt history, inferred preferences, and project policy to reduce ambiguity before the coding agent acts.
+Briefsmith uses repo-local prompt history, recent same-repo compile sessions, inferred preferences, and project policy to reduce ambiguity before the coding agent acts.
 
 For automatic enrichment, Briefsmith scopes history to the current repo by default so one project's meta prompts do not leak into another project's request.
+
+Continuation-style requests such as `continue optimizing` or `继续优化` can also reuse the latest same-repo compile session before Briefsmith decides whether to ask or compile.
 
 ## What Briefsmith Tries To Resolve
 

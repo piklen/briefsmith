@@ -12,6 +12,7 @@ test("CompileSessionRepository list returns newest-first sessions", () => {
   const repository = new CompileSessionRepository(database);
 
   const first = repository.save({
+    projectPath: root,
     rawInput: "first",
     compiledPrompt: "Task Goal\nfirst",
     followUpQuestions: [],
@@ -21,6 +22,7 @@ test("CompileSessionRepository list returns newest-first sessions", () => {
     usedHistoryIds: []
   });
   const second = repository.save({
+    projectPath: root,
     rawInput: "second",
     compiledPrompt: "Task Goal\nsecond",
     followUpQuestions: [],
