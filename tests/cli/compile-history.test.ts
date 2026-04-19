@@ -95,6 +95,7 @@ test("runCli compile history lists recent compile sessions", async () => {
   assert.equal(exitCode, 0);
   assert.equal(output.some((line) => line.includes("history compile one")), true);
   assert.equal(output.some((line) => line.includes("history compile two")), true);
+  assert.equal(output.some((line) => line.includes("history compile two") && line.includes("history_slots=constraints")), true);
 });
 
 test("runCli compile show prints persisted history slot provenance", async () => {

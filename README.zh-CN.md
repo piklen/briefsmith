@@ -148,6 +148,7 @@ briefsmith preflight "optimize this import flow" --host codex --json
 | `compiledPrompt` | `compile` 时生成的任务说明 |
 | `resolvedSlots` | 本次补齐的任务槽位 |
 | `usedHistoryIds` | 本次使用到的历史 prompt |
+| `historySlotIds` | 每个历史补齐槽位具体用了哪条历史 prompt |
 | `evidence` | 为什么 Briefsmith 会做出这个判断 |
 
 最重要的 evidence 字段：
@@ -159,6 +160,7 @@ briefsmith preflight "optimize this import flow" --host codex --json
 | `unresolvedSlots` | 补全后仍然缺失什么 |
 | `lowConfidenceSlots` | 已补全但置信度仍低于阈值的槽位 |
 | `historyMatchCount` | 命中的历史 prompt 数量 |
+| `historySlotIds` | 本次决策里槽位到历史证据的精确映射 |
 | `resolvedSlotSources` | 每个槽位来自哪里 |
 | `resolvedSlotConfidence` | 每个槽位的置信度 |
 
@@ -326,6 +328,8 @@ briefsmith compile latest
 briefsmith compile history
 briefsmith compile show <compile-session-id>
 ```
+
+如果某次保存的 session 用到了 prompt memory，`briefsmith compile history` 会在摘要里追加 `history_slots=...`；`briefsmith compile show` 会完整打印持久化后的 `History Slot IDs` provenance。
 
 ### 支撑上下文
 

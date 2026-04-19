@@ -117,7 +117,14 @@ export async function runCompileSessionsCommand(args: string[], context: CliCont
       }
 
       for (const session of sessions) {
-        context.stdout(`${session.id} | ${session.targetFramework} | ${session.createdAt} | ${session.rawInput}`);
+        const historySummary = renderHistorySlotSummary(session.historySlotIds);
+        context.stdout([
+          session.id,
+          session.targetFramework,
+          session.createdAt,
+          session.rawInput,
+          historySummary
+        ].filter((part) => part.length > 0).join(" | "));
       }
       return 0;
     }
@@ -176,4 +183,9 @@ function printCompileSession(
   if (session.compiledPrompt.length > 0) {
     context.stdout(session.compiledPrompt);
   }
+}
+
+function renderHistorySlotSummary(historySlotIds: Record<string, string>): string {
+  const slots = Object.keys(historySlotIds);
+  return slots.length > 0 ? `history_slots=${slots.join(",")}` : "";
 }

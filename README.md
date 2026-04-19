@@ -148,6 +148,7 @@ Key response fields:
 | `compiledPrompt` | Generated task brief when action is `compile` |
 | `resolvedSlots` | Task slots filled during enrichment |
 | `usedHistoryIds` | Historical prompts used as evidence |
+| `historySlotIds` | Exact history entry used for each history-resolved slot |
 | `evidence` | Why Briefsmith made the decision |
 
 Most useful evidence fields:
@@ -159,6 +160,7 @@ Most useful evidence fields:
 | `unresolvedSlots` | What is still missing after enrichment |
 | `lowConfidenceSlots` | Filled slots still below threshold |
 | `historyMatchCount` | Number of matching historical prompts |
+| `historySlotIds` | Exact slot-to-history provenance in this decision |
 | `resolvedSlotSources` | Where each resolved slot came from |
 | `resolvedSlotConfidence` | Confidence score for each resolved slot |
 
@@ -319,6 +321,8 @@ briefsmith compile latest
 briefsmith compile history
 briefsmith compile show <compile-session-id>
 ```
+
+`briefsmith compile history` appends `history_slots=...` when a saved session used prompt memory, and `briefsmith compile show` prints the persisted `History Slot IDs` provenance in full.
 
 ### Supporting Context
 
