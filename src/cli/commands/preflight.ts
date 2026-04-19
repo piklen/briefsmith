@@ -11,6 +11,7 @@ import { Database } from "../../storage/database.js";
 import { CompileSessionRepository } from "../../storage/compile-session-repository.js";
 import { ProfileRepository } from "../../storage/profile-repository.js";
 import { PromptRepository } from "../../storage/prompt-repository.js";
+import { CLI_NAME } from "../command-name.js";
 
 type PreflightHost = "cli" | "claude" | "codex" | "opencode";
 type Framework = "plain" | "gsd" | "superpowers" | "gstack";
@@ -48,7 +49,7 @@ interface PreflightPayload {
 export async function runPreflightCommand(args: string[], context: CliContext): Promise<number> {
   const options = parsePreflightArgs(args);
   if (!options.rawInput) {
-    context.stderr('usage: prompt preflight "<raw input>" [--host cli|claude|codex|opencode] [--json]');
+    context.stderr(`usage: ${CLI_NAME} preflight "<raw input>" [--host cli|claude|codex|opencode] [--json]`);
     return 1;
   }
 

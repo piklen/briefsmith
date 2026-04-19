@@ -1,20 +1,52 @@
 {
-  "name": "prompt-skill-runtime",
+  "name": "briefsmith",
   "version": "0.1.0",
-  "private": true,
+  "description": "Briefsmith is a prompt quality gate and task brief compiler for AI coding hosts such as Codex, Claude Code, and OpenCode.",
+  "license": "MIT",
   "type": "module",
+  "homepage": "https://github.com/piklen/briefsmith#readme",
+  "bugs": {
+    "url": "https://github.com/piklen/briefsmith/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/piklen/briefsmith.git"
+  },
+  "keywords": [
+    "prompt",
+    "cli",
+    "codex",
+    "claude",
+    "opencode",
+    "developer-tools",
+    "ai"
+  ],
+  "files": [
+    "dist/src",
+    ".agents/skills/prompt-memory/SKILL.md"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
   "bin": {
-    "prompt": "./dist/src/cli/index.js"
+    "briefsmith": "./dist/src/cli/index.js"
   },
   "engines": {
     "node": ">=22.13.0"
   },
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "clean": "node -e \"require('node:fs').rmSync('dist', { recursive: true, force: true })\"",
+    "build": "npm run clean && tsc -p tsconfig.json",
     "check": "tsc -p tsconfig.json --noEmit",
-    "test": "node --import tsx --test \"tests/**/*.test.ts\""
+    "test": "node --import tsx --test \"tests/**/*.test.ts\"",
+    "changeset": "changeset",
+    "version-packages": "changeset version",
+    "prepack": "npm run build",
+    "pack:check": "npm pack --json --dry-run",
+    "release": "changeset publish"
   },
   "devDependencies": {
+    "@changesets/cli": "^2.29.7",
     "@types/node": "^25.0.0",
     "tsx": "^4.20.6",
     "typescript": "^5.9.3"

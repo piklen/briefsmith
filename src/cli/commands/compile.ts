@@ -9,6 +9,7 @@ import { Database } from "../../storage/database.js";
 import { CompileSessionRepository } from "../../storage/compile-session-repository.js";
 import { ProfileRepository } from "../../storage/profile-repository.js";
 import { PromptRepository } from "../../storage/prompt-repository.js";
+import { CLI_NAME } from "../command-name.js";
 
 type Framework = "plain" | "gsd" | "superpowers" | "gstack";
 
@@ -109,7 +110,7 @@ export async function runCompileSessionsCommand(args: string[], context: CliCont
       return 0;
     }
 
-    context.stderr("usage: prompt compile <latest|history|show <id>|\"<raw input>\">");
+    context.stderr(`usage: ${CLI_NAME} compile <latest|history|show <id>|"<raw input>">`);
     return 1;
   } finally {
     database.close();

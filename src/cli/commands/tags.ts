@@ -2,6 +2,7 @@ import { databasePath, globalDataDir } from "../../config/paths.js";
 import type { CliContext } from "../../core/types.js";
 import { Database } from "../../storage/database.js";
 import { PromptRepository } from "../../storage/prompt-repository.js";
+import { CLI_NAME } from "../command-name.js";
 
 export async function runTagsCommand(args: string[], context: CliContext): Promise<number> {
   const [subcommand, id, tag] = args;
@@ -12,7 +13,7 @@ export async function runTagsCommand(args: string[], context: CliContext): Promi
     switch (subcommand) {
       case "add": {
         if (!id || !tag) {
-          context.stderr("usage: prompt tags add <id> <tag>");
+          context.stderr(`usage: ${CLI_NAME} tags add <id> <tag>`);
           return 1;
         }
         const prompt = repository.addTag(id, tag);
@@ -25,7 +26,7 @@ export async function runTagsCommand(args: string[], context: CliContext): Promi
       }
       case "remove": {
         if (!id || !tag) {
-          context.stderr("usage: prompt tags remove <id> <tag>");
+          context.stderr(`usage: ${CLI_NAME} tags remove <id> <tag>`);
           return 1;
         }
         const prompt = repository.removeTag(id, tag);
@@ -38,7 +39,7 @@ export async function runTagsCommand(args: string[], context: CliContext): Promi
       }
       case "list": {
         if (!id) {
-          context.stderr("usage: prompt tags list <id>");
+          context.stderr(`usage: ${CLI_NAME} tags list <id>`);
           return 1;
         }
         const prompt = repository.getById(id);
@@ -56,7 +57,7 @@ export async function runTagsCommand(args: string[], context: CliContext): Promi
         return 0;
       }
       default:
-        context.stderr("usage: prompt tags <add|remove|list> ...");
+        context.stderr(`usage: ${CLI_NAME} tags <add|remove|list> ...`);
         return 1;
     }
   } finally {

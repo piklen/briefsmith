@@ -2,11 +2,12 @@ import { databasePath, globalDataDir } from "../../config/paths.js";
 import type { CliContext } from "../../core/types.js";
 import { Database } from "../../storage/database.js";
 import { PromptRepository } from "../../storage/prompt-repository.js";
+import { CLI_NAME } from "../command-name.js";
 
 export async function runFavoritesCommand(args: string[], context: CliContext): Promise<number> {
   const [subcommand] = args;
   if (subcommand !== "list") {
-    context.stderr("usage: prompt favorites list");
+    context.stderr(`usage: ${CLI_NAME} favorites list`);
     return 1;
   }
 

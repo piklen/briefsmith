@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { CLI_NAME } from "../../src/cli/command-name.js";
 import { runCli } from "../../src/cli/index.js";
 
 test("runCli prints top-level help when no args are given", async () => {
@@ -12,7 +13,7 @@ test("runCli prints top-level help when no args are given", async () => {
   });
 
   assert.equal(exitCode, 0);
-  assert.equal(output.some((line) => line.includes("prompt import")), true);
-  assert.equal(output.some((line) => line.includes("prompt compile")), true);
-  assert.equal(output.some((line) => line.includes("prompt doctor")), true);
+  assert.equal(output.some((line) => line.includes(`${CLI_NAME} import`)), true);
+  assert.equal(output.some((line) => line.includes(`${CLI_NAME} compile`)), true);
+  assert.equal(output.some((line) => line.includes(`${CLI_NAME} doctor`)), true);
 });

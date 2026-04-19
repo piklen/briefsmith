@@ -2,6 +2,7 @@ import type { SlotName } from "../../core/types.js";
 import type { CliContext } from "../../core/types.js";
 import type { ProjectPolicyHost } from "../../config/project-policy.js";
 import { readProjectPolicy, writeProjectPolicy } from "../../config/project-policy.js";
+import { CLI_NAME } from "../command-name.js";
 
 export async function stopPromptChecks(cwd: string): Promise<void> {
   await writeProjectPolicy(cwd, { enabled: false, mode: "off" });
@@ -35,7 +36,7 @@ export async function runPolicySubcommand(args: string[], context: CliContext): 
   if (subcommand === "mode") {
     const mode = parseMode(rest[0]);
     if (!mode) {
-      context.stderr("usage: prompt policy mode <off|suggest|auto-compile>");
+      context.stderr(`usage: ${CLI_NAME} policy mode <off|suggest|auto-compile>`);
       return 1;
     }
 
@@ -43,14 +44,14 @@ export async function runPolicySubcommand(args: string[], context: CliContext): 
       enabled: mode !== "off",
       mode
     });
-    context.stdout(`prompt policy mode set to ${next.mode}`);
+    context.stdout(`${CLI_NAME} policy mode set to ${next.mode}`);
     return 0;
   }
 
   if (subcommand === "threshold") {
     const host = parseHost(rest[0]);
     if (!host) {
-      context.stderr("usage: prompt policy threshold <cli|claude|codex|opencode> <value> OR prompt policy threshold <host> <slot> <value>");
+      context.stderr(`usage: ${CLI_NAME} policy threshold <cli|claude|codex|opencode> <value> OR ${CLI_NAME} policy threshold <host> <slot> <value>`);
       return 1;
     }
 
@@ -69,7 +70,7 @@ export async function runPolicySubcommand(args: string[], context: CliContext): 
           [host]: threshold
         }
       });
-      context.stdout(`prompt policy threshold set: ${host}=${next.hostConfidenceThresholds[host]}`);
+      context.stdout(`${CLI_NAME} policy threshold set: ${host}=${next.hostConfidenceThresholds[host]}`);
       return 0;
     }
 
@@ -95,15 +96,15 @@ export async function runPolicySubcommand(args: string[], context: CliContext): 
           }
         }
       });
-      context.stdout(`prompt policy slot threshold set: ${host}.${slot}=${next.hostSlotConfidenceThresholds[host][slot]}`);
+      context.stdout(`${CLI_NAME} policy slot threshold set: ${host}.${slot}=${next.hostSlotConfidenceThresholds[host][slot]}`);
       return 0;
     }
 
-    context.stderr("usage: prompt policy threshold <cli|claude|codex|opencode> <value> OR prompt policy threshold <host> <slot> <value>");
+    context.stderr(`usage: ${CLI_NAME} policy threshold <cli|claude|codex|opencode> <value> OR ${CLI_NAME} policy threshold <host> <slot> <value>`);
     return 1;
   }
 
-  context.stderr("usage: prompt policy <show|mode|threshold> ...");
+  context.stderr(`usage: ${CLI_NAME} policy <show|mode|threshold> ...`);
   return 1;
 }
 

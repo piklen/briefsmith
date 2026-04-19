@@ -7,6 +7,7 @@ import { doctorOpenCodeAdapter } from "../../host/opencode/doctor.js";
 import { installOpenCodeAdapter } from "../../host/opencode/install.js";
 import { ensureRuntimeBuild } from "../../host/runtime-build.js";
 import type { HostAdapterName, InstallScope } from "../../host/base.js";
+import { CLI_NAME } from "../command-name.js";
 
 const SUPPORTED_ADAPTERS: Array<{ name: HostAdapterName; scopes: InstallScope[] }> = [
   { name: "claude", scopes: ["project", "global"] },
@@ -25,7 +26,7 @@ export async function runAdaptersCommand(args: string[], context: CliContext): P
       return 0;
     case "install": {
       if (!name || !isInstallTarget(name)) {
-        context.stderr("usage: prompt adapters install <claude|codex|opencode|all> [--scope project|global]");
+        context.stderr(`usage: ${CLI_NAME} adapters install <claude|codex|opencode|all> [--scope project|global]`);
         return 1;
       }
       const scope = parseScope(rest) ?? "project";
@@ -66,7 +67,7 @@ export async function runAdaptersCommand(args: string[], context: CliContext): P
       return 0;
     }
     default:
-      context.stderr("usage: prompt adapters <list|install|doctor> ...");
+      context.stderr(`usage: ${CLI_NAME} adapters <list|install|doctor> ...`);
       return 1;
   }
 }
