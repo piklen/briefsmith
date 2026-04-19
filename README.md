@@ -1,10 +1,28 @@
 # Prompt Skill Runtime
 
-本项目当前已经从“本地 prompt 采集菜单栏应用”收敛为一个 **skill-first 的 Prompt Memory / Prompt Compiler 运行时**。
+本项目当前已经从“本地 prompt 采集菜单栏应用”收敛为一个 **Prompt Quality Gate / Task Brief Compiler**。
 
-当前目标不是先做 GUI，而是先把下面这条链路做实：
+它解决的核心问题不是“prompt 写得够不够漂亮”，而是：
+
+- 用户给 AI 的输入经常只有模糊意图，例如“帮我优化”。
+- AI 真正需要的是可执行任务说明，而不是一句未展开的口语化请求。
+- 如果能从历史、profile 和项目上下文里高置信补全，就直接补全。
+- 如果仍然缺关键信息，就应该明确追问，而不是让 AI 瞎猜。
+
+因此这个项目的当前目标，是把下面这条链路做实：
 
 `本地历史 prompt 导入 -> 查找 / 收藏 -> 用户 profile 刷新 -> preflight 追问或编译 -> host adapter 消费`
+
+更准确地说：
+
+- `import / find / favorites / profile` 是输入质量增强的支撑能力。
+- `compile / preflight / adapters` 才是产品主链路。
+- 这个仓库的核心价值是把模糊用户输入压缩成更稳定、更低歧义的执行前 brief。
+
+详细定位说明见：
+
+- `docs/superpowers/specs/2026-04-18-prompt-skill-runtime-design.md`
+- `docs/superpowers/specs/2026-04-19-prompt-quality-gate-positioning-design.md`
 
 ## 当前能力
 
