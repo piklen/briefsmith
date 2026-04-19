@@ -88,8 +88,8 @@
 - `target`：做什么对象
 - `success_criteria`：为什么做，怎样算完成
 - `constraints`：什么不能动
+- `verification`：完成后怎么验证结果
 - `output_format`：最后给什么形态的结果
-- `verification`：如何验证结果
 - `non_goals`：这次明确不做什么
 
 如果这些内容无法明确，本项目的价值就不是替用户脑补，而是让 AI 先问对问题。
@@ -142,9 +142,10 @@
 - `target`
 - `success_criteria`
 - `constraints`
+- `verification`
 - `output_format`
 
-这四个槽位已经足够支撑第一版“模糊输入预处理”。
+这五个槽位已经足够支撑第一版“模糊输入预处理”。
 
 ### 8.2 推荐优先新增的槽位
 
@@ -162,15 +163,6 @@
 
 - 区分“要优化”和“哪里真的有问题”
 - 避免 AI 只做表面重构
-
-#### `verification`
-
-用于描述完成后如何验证。
-
-价值：
-
-- 把“改完了”变成“证明改对了”
-- 对 coding 场景尤为重要
 
 #### `non_goals`
 

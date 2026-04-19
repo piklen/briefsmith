@@ -25,12 +25,12 @@
 - `target`
 - `success_criteria`
 - `constraints`
+- `verification`
 - `output_format`
 
 后续优先补强方向：
 
 - `problem_signal`
-- `verification`
 - `non_goals`
 - `scope`
 - `risk_boundary`

@@ -6,7 +6,7 @@ import { compileOrClarify, compilePrompt } from "../../src/compiler/compiler.js"
 test("detectMissingSlots flags vague prompts missing success criteria and constraints", () => {
   const result = detectMissingSlots("optimize this");
 
-  assert.deepEqual(result.missing, ["target", "success_criteria", "constraints"]);
+  assert.deepEqual(result.missing, ["target", "success_criteria", "constraints", "verification"]);
   assert.equal(result.needsFollowUp, true);
 });
 
@@ -19,7 +19,8 @@ test("compilePrompt emits a structured task brief", () => {
     followUpAnswers: {
       target: "orders query",
       success_criteria: "faster response time",
-      constraints: "do not change external API"
+      constraints: "do not change external API",
+      verification: "run the relevant test suite and confirm the API response stays unchanged"
     },
     retrievedPromptSnippets: [
       "优化 SQL 查询，并保留现有接口"
@@ -29,6 +30,7 @@ test("compilePrompt emits a structured task brief", () => {
   assert.equal(output.includes("Task Goal"), true);
   assert.equal(output.includes("orders query"), true);
   assert.equal(output.includes("do not change external API"), true);
+  assert.equal(output.includes("run the relevant test suite"), true);
 });
 
 test("detectMissingSlots recognizes Chinese constraint phrases", () => {
@@ -50,7 +52,9 @@ test("compileOrClarify auto-fills high-confidence optimize requests", () => {
   assert.equal(result.resolvedSlots.target?.includes("导入逻辑"), true);
   assert.equal(result.resolvedSlots.constraints?.includes("外部行为"), true);
   assert.equal(result.resolvedSlots.success_criteria?.length ? true : false, true);
+  assert.equal(result.resolvedSlots.verification?.includes("验证"), true);
   assert.equal(result.resolvedSlotConfidence.target, 0.96);
   assert.equal(result.resolvedSlotConfidence.success_criteria, 0.68);
   assert.equal(result.resolvedSlotConfidence.constraints, 0.82);
+  assert.equal(result.resolvedSlotConfidence.verification, 0.78);
 });

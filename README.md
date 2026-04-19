@@ -22,6 +22,16 @@ That is not a wording problem. It is an execution-readiness problem.
 
 Briefsmith uses local prompt history, inferred preferences, and project policy to reduce ambiguity before the coding agent acts.
 
+## What Briefsmith Tries To Resolve
+
+Before execution, Briefsmith tries to make these fields explicit:
+
+- `target`
+- `success_criteria`
+- `constraints`
+- `verification`
+- `output_format`
+
 ## Core Decision: `ask / compile / skip`
 
 | Action | What it means |

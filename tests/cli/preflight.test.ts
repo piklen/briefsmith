@@ -81,7 +81,7 @@ test("runCli preflight keeps low-confidence slots as compile for cli host", asyn
   assert.equal(payload.host, "cli");
   assert.equal(payload.compiledPrompt.includes("外部行为"), true);
   assert.deepEqual(payload.usedHistoryIds, ["codex:history-1"]);
-  assert.deepEqual(payload.evidence.initialMissingSlots, ["target", "success_criteria", "constraints"]);
+  assert.deepEqual(payload.evidence.initialMissingSlots, ["target", "success_criteria", "constraints", "verification"]);
   assert.deepEqual(payload.evidence.unresolvedSlots, []);
   assert.deepEqual(payload.evidence.lowConfidenceSlots, []);
   assert.equal(payload.evidence.confidenceThreshold, 0);
@@ -96,11 +96,14 @@ test("runCli preflight keeps low-confidence slots as compile for cli host", asyn
   assert.equal(payload.evidence.resolvedSlotConfidence.target, 0.96);
   assert.equal(payload.evidence.resolvedSlotConfidence.success_criteria, 0.68);
   assert.equal(payload.evidence.resolvedSlotConfidence.constraints, 0.82);
+  assert.equal(payload.evidence.resolvedSlotConfidence.verification, 0.78);
   assert.equal(payload.evidence.resolvedSlotSources.target, "input");
   assert.equal(payload.evidence.resolvedSlotSources.success_criteria, "heuristic");
   assert.equal(payload.evidence.resolvedSlotSources.constraints, "history");
+  assert.equal(payload.evidence.resolvedSlotSources.verification, "heuristic");
   assert.equal(latest?.targetHost, "cli");
   assert.equal(latest?.resolvedSlots.constraints?.includes("外部行为"), true);
+  assert.equal(payload.resolvedSlots.verification?.includes("验证"), true);
 });
 
 test("runCli preflight asks for low-confidence slots on codex host", async () => {
@@ -163,6 +166,7 @@ test("runCli preflight asks for low-confidence slots on codex host", async () =>
   assert.deepEqual(payload.evidence.lowConfidenceSlots, ["success_criteria"]);
   assert.equal(payload.evidence.confidenceThreshold, 0.7);
   assert.equal(payload.evidence.resolvedSlotConfidence.success_criteria, 0.68);
+  assert.equal(payload.evidence.resolvedSlotConfidence.verification, 0.78);
   assert.equal(payload.questions.some((question) => question.includes("成功标准")), true);
 });
 
@@ -202,14 +206,16 @@ test("runCli preflight returns ask action for low-information input", async () =
   assert.equal(payload.host, "opencode");
   assert.equal(payload.questions.some((question) => question.includes("具体要处理")), true);
   assert.equal(payload.questions.some((question) => question.includes("成功标准")), true);
-  assert.deepEqual(payload.evidence.initialMissingSlots, ["target", "success_criteria", "constraints"]);
+  assert.deepEqual(payload.evidence.initialMissingSlots, ["target", "success_criteria", "constraints", "verification"]);
   assert.deepEqual(payload.evidence.unresolvedSlots, ["target", "constraints"]);
   assert.deepEqual(payload.evidence.lowConfidenceSlots, ["success_criteria"]);
   assert.equal(payload.evidence.confidenceThreshold, 0.75);
   assert.equal(payload.evidence.historyMatchCount, 0);
   assert.deepEqual(payload.evidence.historyMatches, []);
   assert.equal(payload.evidence.resolvedSlotConfidence.success_criteria, 0.68);
+  assert.equal(payload.evidence.resolvedSlotConfidence.verification, 0.78);
   assert.equal(payload.evidence.resolvedSlotSources.success_criteria, "heuristic");
+  assert.equal(payload.evidence.resolvedSlotSources.verification, "heuristic");
 });
 
 test("runCli preflight respects project-level confidence threshold overrides", async () => {
@@ -297,7 +303,8 @@ test("runCli preflight respects project-level per-slot confidence threshold over
       hostSlotConfidenceThresholds: {
         codex: {
           success_criteria: 0.6,
-          constraints: 0.8
+          constraints: 0.8,
+          verification: 0.75
         }
       },
       updatedAt: "2026-04-19T10:00:00.000Z"
@@ -359,6 +366,7 @@ test("runCli preflight respects project-level per-slot confidence threshold over
   assert.equal(payload.evidence.confidenceThreshold, 0.9);
   assert.equal(payload.evidence.slotConfidenceThresholds.success_criteria, 0.6);
   assert.equal(payload.evidence.slotConfidenceThresholds.constraints, 0.8);
+  assert.equal(payload.evidence.slotConfidenceThresholds.verification, 0.75);
   assert.equal(payload.evidence.slotConfidenceThresholds.target, 0.9);
 });
 

@@ -3,6 +3,7 @@ import { buildFollowUpQuestions } from "./clarifier.js";
 import { detectMissingSlots } from "./slot-detector.js";
 
 const CHINESE_PATTERN = /[\u4e00-\u9fff]/;
+const SLOT_RENDER_ORDER: SlotName[] = ["target", "success_criteria", "constraints", "verification", "output_format"];
 const SUCCESS_HINTS = [
   {
     pattern: /optimi[sz]e|performance|优化/i,
@@ -33,6 +34,28 @@ const SUCCESS_HINTS = [
     pattern: /plan|设计|方案|规划/i,
     zh: "给出可执行方案，并说明风险与回滚方式。",
     en: "Provide an actionable plan with risks and rollback considerations."
+  }
+] as const;
+const VERIFICATION_HINTS = [
+  {
+    pattern: /optimi[sz]e|performance|refactor|improve|simplify|优化|性能|重构|改进|简化/i,
+    zh: "运行相关测试或关键流程回归，验证优化前后的行为或性能变化符合预期。",
+    en: "Run the relevant tests or smoke checks on the affected flow, and compare before/after behavior or performance."
+  },
+  {
+    pattern: /fix|bug|broken|repair|修复|报错|故障/i,
+    zh: "先复现问题，再运行相关测试或回归检查，确认问题消失且没有引入新回归。",
+    en: "Reproduce the issue first, then run the relevant tests or regression checks to confirm the bug is fixed without introducing regressions."
+  },
+  {
+    pattern: /build|create|implement|add|构建|实现|新增/i,
+    zh: "运行新增或受影响的测试，并手动验证接入路径或关键用户流程可用。",
+    en: "Run the new or affected tests, and manually verify the integration path or key user flow."
+  },
+  {
+    pattern: /migrate|upgrade|升级|迁移/i,
+    zh: "执行迁移后的回归检查，并确认兼容性或数据状态符合预期。",
+    en: "Run post-migration regression checks and confirm compatibility or data state matches the expected outcome."
   }
 ] as const;
 const EXPLICIT_CONSTRAINT_PATTERN = /(保持[^，。；,.!?\n]{0,40}(?:不变|不修改|不动|兼容)|不要[^，。；,.!?\n]{0,40}|不能[^，。；,.!?\n]{0,40}|do not[^,.;!?\n]{0,60}|don't[^,.;!?\n]{0,60}|without[^,.;!?\n]{0,60}|keep[^,.;!?\n]{0,60}|preserve[^,.;!?\n]{0,60})/i;
@@ -68,16 +91,12 @@ const GENERIC_TARGETS = new Set([
 const INPUT_CONFIDENCE = 0.96;
 const HISTORY_CONFIDENCE = 0.82;
 const HEURISTIC_CONFIDENCE = 0.68;
+const VERIFICATION_CONFIDENCE = 0.78;
 const DEFAULT_CONFIDENCE = 0.55;
 
 export function compilePrompt(input: CompilePromptInput): string {
-  const defaults = Object.entries(input.inferredDefaults)
-    .map(([key, value]) => `- ${key}: ${String(value)}`)
-    .join("\n");
-
-  const answers = Object.entries(input.followUpAnswers)
-    .map(([key, value]) => `- ${key}: ${value}`)
-    .join("\n");
+  const defaults = renderContextEntries(input.inferredDefaults);
+  const answers = renderSlotEntries(input.followUpAnswers);
 
   const history = input.retrievedPromptSnippets.map((snippet) => `- ${snippet}`).join("\n");
 
@@ -97,7 +116,8 @@ export function compilePrompt(input: CompilePromptInput): string {
     "Execution Requirements",
     "- keep the final answer aligned to the resolved context",
     "- call out assumptions when context is still incomplete",
-    "- preserve risk boundaries from the resolved context"
+    "- preserve risk boundaries from the resolved context",
+    "- follow the verification plan from the resolved context, or say explicitly if you could not run it"
   ].join("\n");
 }
 
@@ -194,6 +214,16 @@ function resolveMissingSlots(
       continue;
     }
 
+    if (slot === "verification") {
+      const verification = inferVerification(rawInput, inferredDefaults);
+      if (verification) {
+        values.verification = verification.value;
+        sources.verification = verification.source;
+        confidence.verification = verification.confidence;
+      }
+      continue;
+    }
+
     if (slot === "output_format") {
       values.output_format = prefersChinese(rawInput, inferredDefaults)
         ? "结构化任务说明"
@@ -251,6 +281,25 @@ function inferSuccessCriteria(
   return null;
 }
 
+function inferVerification(
+  rawInput: string,
+  inferredDefaults: Record<string, unknown>
+): { value: string; source: SlotResolutionSource; confidence: number } | null {
+  const useChinese = prefersChinese(rawInput, inferredDefaults);
+
+  for (const hint of VERIFICATION_HINTS) {
+    if (hint.pattern.test(rawInput)) {
+      return {
+        value: useChinese ? hint.zh : hint.en,
+        source: "heuristic",
+        confidence: VERIFICATION_CONFIDENCE
+      };
+    }
+  }
+
+  return null;
+}
+
 function inferConstraint(
   rawInput: string,
   retrievedPromptSnippets: string[]
@@ -282,6 +331,22 @@ function extractConstraint(text: string): string | null {
 
 function prefersChinese(rawInput: string, inferredDefaults: Record<string, unknown>): boolean {
   return CHINESE_PATTERN.test(rawInput) || inferredDefaults.preferred_language === "zh-CN";
+}
+
+function renderSlotEntries(values: Partial<Record<SlotName, string>>): string {
+  const lines = SLOT_RENDER_ORDER
+    .flatMap((slot) => {
+      const value = values[slot];
+      return value ? [`- ${slot}: ${value}`] : [];
+    });
+
+  return lines.join("\n");
+}
+
+function renderContextEntries(values: Record<string, unknown>): string {
+  return Object.entries(values)
+    .map(([key, value]) => `- ${key}: ${String(value)}`)
+    .join("\n");
 }
 
 function normalizeCandidate(value: string | undefined): string | null {

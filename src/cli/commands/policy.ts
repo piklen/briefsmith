@@ -78,7 +78,7 @@ export async function runPolicySubcommand(args: string[], context: CliContext): 
       const slot = parseSlot(rest[1]);
       const threshold = parseThreshold(rest[2]);
       if (!slot) {
-        context.stderr("slot must be one of target|success_criteria|constraints|output_format");
+        context.stderr("slot must be one of target|success_criteria|constraints|verification|output_format");
         return 1;
       }
       if (threshold === null) {
@@ -121,7 +121,7 @@ function parseHost(value: string | undefined): ProjectPolicyHost | null {
 }
 
 function parseSlot(value: string | undefined): SlotName | null {
-  return value === "target" || value === "success_criteria" || value === "constraints" || value === "output_format"
+  return value === "target" || value === "success_criteria" || value === "constraints" || value === "verification" || value === "output_format"
     ? value
     : null;
 }

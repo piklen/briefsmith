@@ -70,7 +70,7 @@ const helpSections: HelpSection[] = [
         description: "set the default confidence threshold for one host"
       },
       {
-        command: `${CLI_NAME} policy threshold <cli|claude|codex|opencode> <target|success_criteria|constraints|output_format> <value>`,
+        command: `${CLI_NAME} policy threshold <cli|claude|codex|opencode> <target|success_criteria|constraints|verification|output_format> <value>`,
         description: "set the confidence threshold for one host slot"
       },
       { command: `${CLI_NAME} start`, description: "enable prompt checks for the current project" },

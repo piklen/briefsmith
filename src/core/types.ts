@@ -4,6 +4,7 @@ export type SlotName =
   | "target"
   | "success_criteria"
   | "constraints"
+  | "verification"
   | "output_format";
 
 export type SlotResolutionSource = "input" | "history" | "heuristic" | "default";

@@ -60,6 +60,15 @@ test("runCli policy mode and threshold update project config", async () => {
   assert.equal(exitCode, 0);
 
   output = [];
+  exitCode = await runCli(["policy", "threshold", "codex", "verification", "0.64"], {
+    cwd: root,
+    homeDir: root,
+    stdout: (line) => output.push(line),
+    stderr: (line) => output.push(line)
+  });
+  assert.equal(exitCode, 0);
+
+  output = [];
   exitCode = await runCli(["policy", "show"], {
     cwd: root,
     homeDir: root,
@@ -78,5 +87,6 @@ test("runCli policy mode and threshold update project config", async () => {
   assert.equal(payload.hostConfidenceThresholds.codex, 0.62);
   assert.equal(payload.hostSlotConfidenceThresholds.codex.target, 0.62);
   assert.equal(payload.hostSlotConfidenceThresholds.codex.success_criteria, 0.58);
+  assert.equal(payload.hostSlotConfidenceThresholds.codex.verification, 0.64);
   assert.equal(payload.hostSlotConfidenceThresholds.codex.constraints, 0.62);
 });
