@@ -47,7 +47,7 @@ test("retrievePromptEntries ignores generic substring matches from unrelated Eng
       projectPath: root,
       sessionId: "session-1",
       timestamp: "2026-04-19T10:00:00.000Z",
-      promptText: "Consolidate workflow memory and improve rollout summaries.",
+      promptText: "Memory agent workflow for future checkout tasks. The goal is to help future agents fix similar tasks with fewer tool calls and better workflow summaries.",
       sourceFile: "/tmp/source.jsonl",
       sourceOffset: 0,
       fingerprint: "fp-irrelevant-1",
@@ -75,4 +75,62 @@ test("retrievePromptEntries ignores generic substring matches from unrelated Eng
   database.close();
 
   assert.deepEqual(entries.map((entry) => entry.id), ["codex:relevant-1"]);
+});
+
+test("retrievePromptEntries ignores long meta prompts that only share one informative token", () => {
+  const root = mkdtempSync(join(tmpdir(), "prompt-skill-history-"));
+  const database = new Database(join(root, "skill.db"));
+  const repository = new PromptRepository(database);
+
+  repository.upsertMany([
+    {
+      id: "codex:irrelevant-2",
+      tool: "codex",
+      projectPath: root,
+      sessionId: "session-1",
+      timestamp: "2026-04-19T10:00:00.000Z",
+      promptText: "You are a memory writing agent. For future checkout tasks, keep improving workflow summaries so other agents can fix similar tasks faster.",
+      sourceFile: "/tmp/source.jsonl",
+      sourceOffset: 0,
+      fingerprint: "fp-irrelevant-2",
+      isFavorite: false,
+      tags: [],
+      importedAt: "2026-04-19T10:00:00.000Z"
+    }
+  ]);
+
+  const entries = retrievePromptEntries(repository, "fix this checkout flow");
+  database.close();
+
+  assert.deepEqual(entries, []);
+});
+
+test("retrievePromptEntries can scope matches to the current project path", () => {
+  const root = mkdtempSync(join(tmpdir(), "prompt-skill-history-"));
+  const database = new Database(join(root, "skill.db"));
+  const repository = new PromptRepository(database);
+
+  repository.upsertMany([
+    {
+      id: "codex:other-project-1",
+      tool: "codex",
+      projectPath: "/tmp/other-project",
+      sessionId: "session-1",
+      timestamp: "2026-04-19T10:00:00.000Z",
+      promptText: "Fix checkout flow timeout without changing the payment API.",
+      sourceFile: "/tmp/source.jsonl",
+      sourceOffset: 0,
+      fingerprint: "fp-other-project-1",
+      isFavorite: false,
+      tags: [],
+      importedAt: "2026-04-19T10:00:00.000Z"
+    }
+  ]);
+
+  const entries = retrievePromptEntries(repository, "fix this checkout flow", 3, {
+    projectPath: root
+  });
+  database.close();
+
+  assert.deepEqual(entries, []);
 });

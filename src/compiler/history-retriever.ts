@@ -1,20 +1,40 @@
+import { resolve } from "node:path";
 import type { PromptEntry } from "../core/types.js";
 import { PromptRepository } from "../storage/prompt-repository.js";
 
-export function retrievePromptSnippets(repository: PromptRepository, query: string, limit = 3): string[] {
-  return retrievePromptEntries(repository, query, limit)
+interface RetrievePromptOptions {
+  projectPath?: string;
+}
+
+export function retrievePromptSnippets(
+  repository: PromptRepository,
+  query: string,
+  limit = 3,
+  options: RetrievePromptOptions = {}
+): string[] {
+  return retrievePromptEntries(repository, query, limit, options)
     .map((row) => row.promptText)
     .filter((text, index, array) => array.indexOf(text) === index)
     .slice(0, limit);
 }
 
-export function retrievePromptEntries(repository: PromptRepository, query: string, limit = 3): PromptEntry[] {
+export function retrievePromptEntries(
+  repository: PromptRepository,
+  query: string,
+  limit = 3,
+  options: RetrievePromptOptions = {}
+): PromptEntry[] {
   const results = new Map<string, { entry: PromptEntry; score: number }>();
   const normalizedQuery = normalizeSearchText(query);
   const queryTokens = extractSearchTokens(query);
+  const scopedProjectPath = options.projectPath ? resolve(options.projectPath) : null;
 
   for (const candidate of buildQueryCandidates(query)) {
     for (const row of repository.search(candidate, limit)) {
+      if (scopedProjectPath && resolve(row.projectPath) !== scopedProjectPath) {
+        continue;
+      }
+
       const score = scorePromptEntry(row.promptText, normalizedQuery, queryTokens, candidate);
       if (score <= 0) {
         continue;
@@ -116,9 +136,18 @@ function scorePromptEntry(
 ): number {
   const normalizedPrompt = normalizeSearchText(promptText);
   const promptTokens = extractSearchTokens(promptText);
+  const sharedTokens = queryTokens.filter((token) => promptIncludesToken(promptText, promptTokens, token));
+  const longestShared = sharedTokens.reduce((max, token) => Math.max(max, token.length), 0);
+  const exactQueryMatch = normalizedQuery.length >= 4 && normalizedPrompt.includes(normalizedQuery);
+  const requiresTokenConfirmation = queryTokens.length >= 2 && queryTokens.every((token) => !containsChinese(token));
+
+  if (requiresTokenConfirmation && sharedTokens.length < 2 && !exactQueryMatch) {
+    return 0;
+  }
+
   let score = 0;
 
-  if (normalizedQuery.length >= 4 && normalizedPrompt.includes(normalizedQuery)) {
+  if (exactQueryMatch) {
     score += 100;
   }
 
@@ -132,8 +161,6 @@ function scorePromptEntry(
     score += 20 + candidate.length;
   }
 
-  const sharedTokens = queryTokens.filter((token) => promptIncludesToken(promptText, promptTokens, token));
-  const longestShared = sharedTokens.reduce((max, token) => Math.max(max, token.length), 0);
   if (sharedTokens.length >= 2) {
     score += sharedTokens.length * 20 + longestShared;
   } else if (sharedTokens.length === 1 && (containsChinese(sharedTokens[0]) || longestShared >= 6 || queryTokens.length === 1)) {

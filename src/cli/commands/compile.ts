@@ -25,7 +25,9 @@ export async function runCompileCommand(
 
   try {
     const profile = profileRepository.load("global");
-    const historyMatches = retrievePromptEntries(promptRepository, rawInput, 3);
+    const historyMatches = retrievePromptEntries(promptRepository, rawInput, 3, {
+      projectPath: context.cwd
+    });
     const snippets = historyMatches.map((row) => row.promptText);
     const decision = compileOrClarify(rawInput, profile.inferred, snippets);
 

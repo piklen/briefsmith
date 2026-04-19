@@ -82,6 +82,20 @@ test("compileOrClarify keeps explicit constraints and verification in the compil
   assert.equal(result.text.includes("verification"), true);
 });
 
+test("compileOrClarify prefers the raw input language over a Chinese profile default", () => {
+  const result = compileOrClarify(
+    "optimize this import flow",
+    {
+      preferred_language: "zh-CN"
+    },
+    []
+  );
+
+  assert.equal(result.kind, "compiled");
+  assert.equal(result.resolvedSlots.success_criteria?.includes("Improve readability"), true);
+  assert.equal(result.resolvedSlots.verification?.includes("Run the relevant tests"), true);
+});
+
 test("compileOrClarify asks for problem signals on bugfix prompts without visible symptoms", () => {
   const result = compileOrClarify(
     "修复这个登录流程，不要改变外部接口，并运行相关测试验证",

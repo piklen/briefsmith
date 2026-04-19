@@ -46,7 +46,9 @@ export async function evaluateClaudePromptHook(
 
   try {
     const profile = profileRepository.load("global");
-    const snippets = retrievePromptSnippets(promptRepository, input.prompt);
+    const snippets = retrievePromptSnippets(promptRepository, input.prompt, 3, {
+      projectPath: runtime.cwd
+    });
     const decision = compileOrClarify(input.prompt, profile.inferred, snippets);
 
     if (decision.kind === "questions") {

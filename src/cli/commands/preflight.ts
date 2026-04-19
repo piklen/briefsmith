@@ -94,7 +94,9 @@ export async function runPreflightCommand(args: string[], context: CliContext): 
 
   try {
     const profile = profileRepository.load("global");
-    const historyMatches = retrievePromptEntries(promptRepository, options.rawInput, 3);
+    const historyMatches = retrievePromptEntries(promptRepository, options.rawInput, 3, {
+      projectPath: context.cwd
+    });
     const snippets = historyMatches.map((row) => row.promptText);
     const historyEvidence = historyMatches.map((entry) => ({
       id: entry.id,
@@ -111,7 +113,12 @@ export async function runPreflightCommand(args: string[], context: CliContext): 
       decision.missing,
       confidenceGateApplied ? lowConfidenceSlots : []
     );
-    const questions = buildFollowUpQuestions(askSlots);
+    const questions = buildFollowUpQuestions({
+      rawInput: options.rawInput,
+      missing: askSlots,
+      resolvedSlots: decision.resolvedSlots,
+      inferredDefaults: profile.inferred
+    });
 
     if (askSlots.length > 0) {
       compileSessionRepository.save({

@@ -267,7 +267,7 @@ test("runCli preflight does not fill slots from unrelated history matches", asyn
       projectPath: process.cwd(),
       sessionId: "session-irrelevant-1",
       timestamp: "2026-04-19T10:00:00.000Z",
-      promptText: "Consolidate workflow memory and improve rollout summaries.",
+      promptText: "Memory agent workflow for future checkout tasks. The goal is to help future agents fix similar tasks with fewer tool calls and better workflow summaries.",
       sourceFile: "/tmp/source.jsonl",
       sourceOffset: 0,
       fingerprint: "fp-irrelevant-memory-1",
@@ -291,6 +291,7 @@ test("runCli preflight does not fill slots from unrelated history matches", asyn
 
   const payload = JSON.parse(output.join("\n")) as {
     action: string;
+    questions: string[];
     resolvedSlots: Record<string, string>;
     usedHistoryIds: string[];
     evidence: {
@@ -302,9 +303,64 @@ test("runCli preflight does not fill slots from unrelated history matches", asyn
 
   assert.equal(exitCode, 0);
   assert.equal(payload.action, "ask");
+  assert.equal(payload.questions.length, 1);
+  assert.equal(payload.questions[0]?.includes("checkout flow"), true);
+  assert.equal(payload.questions[0]?.includes("symptom"), true);
   assert.deepEqual(payload.usedHistoryIds, []);
   assert.equal(payload.evidence.initialMissingSlots.includes("problem_signal"), true);
   assert.equal(payload.evidence.unresolvedSlots.includes("problem_signal"), true);
+  assert.equal(payload.resolvedSlots.problem_signal, undefined);
+  assert.equal(payload.evidence.resolvedSlotSources.problem_signal, undefined);
+});
+
+test("runCli preflight ignores cross-project history when enriching the current repo", async () => {
+  const homeDir = mkdtempSync(join(tmpdir(), "prompt-skill-home-"));
+  const database = new Database(databasePath(globalDataDir(homeDir)));
+  const promptRepository = new PromptRepository(database);
+
+  promptRepository.upsertMany([
+    {
+      id: "codex:other-project-history-1",
+      tool: "codex",
+      projectPath: "/tmp/other-project",
+      sessionId: "session-other-project-1",
+      timestamp: "2026-04-19T10:00:00.000Z",
+      promptText: "Fix checkout flow timeout without changing the payment API.",
+      sourceFile: "/tmp/source.jsonl",
+      sourceOffset: 0,
+      fingerprint: "fp-other-project-history-1",
+      isFavorite: false,
+      tags: [],
+      importedAt: "2026-04-19T10:00:00.000Z"
+    }
+  ]);
+  database.close();
+
+  const output: string[] = [];
+  const exitCode = await runCli(
+    ["preflight", "fix this checkout flow", "--host", "codex", "--json"],
+    {
+      cwd: process.cwd(),
+      homeDir,
+      stdout: (line) => output.push(line),
+      stderr: (line) => output.push(line)
+    }
+  );
+
+  const payload = JSON.parse(output.join("\n")) as {
+    action: string;
+    resolvedSlots: Record<string, string>;
+    usedHistoryIds: string[];
+    evidence: {
+      historyMatchCount: number;
+      resolvedSlotSources: Record<string, string>;
+    };
+  };
+
+  assert.equal(exitCode, 0);
+  assert.equal(payload.action, "ask");
+  assert.deepEqual(payload.usedHistoryIds, []);
+  assert.equal(payload.evidence.historyMatchCount, 0);
   assert.equal(payload.resolvedSlots.problem_signal, undefined);
   assert.equal(payload.evidence.resolvedSlotSources.problem_signal, undefined);
 });

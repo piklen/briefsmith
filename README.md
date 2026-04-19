@@ -21,7 +21,9 @@ Most agent failures start before the model writes a single token:
 
 That is not a wording problem. It is an execution-readiness problem.
 
-Briefsmith uses local prompt history, inferred preferences, and project policy to reduce ambiguity before the coding agent acts.
+Briefsmith uses repo-local prompt history, inferred preferences, and project policy to reduce ambiguity before the coding agent acts.
+
+For automatic enrichment, Briefsmith scopes history to the current repo by default so one project's meta prompts do not leak into another project's request.
 
 ## What Briefsmith Tries To Resolve
 
@@ -158,6 +160,8 @@ Most useful evidence fields:
 | `resolvedSlotSources` | Where each resolved slot came from |
 | `resolvedSlotConfidence` | Confidence score for each resolved slot |
 
+`questions` is intentionally compact: when multiple details are missing, Briefsmith prefers one contextual follow-up over a mechanical checklist.
+
 ## Three Before / After Examples
 
 ### 1. `ask`: stop a vague bugfix before the host guesses wrong
@@ -173,13 +177,14 @@ After:
 ```text
 action: ask
 why: missing problem_signal and constraints
-host should ask: "What exact symptom are you seeing?"
+host should ask: "Before I guess wrong on checkout flow, please give me these 3 things in one reply: the exact symptom, the success criteria, and the boundaries that must stay unchanged."
 ```
 
 Why this matters:
 
 - without a visible problem signal, the agent can "fix" the wrong thing
 - `problem_signal` is now a first-class slot for bugfix and troubleshooting requests
+- the follow-up stays in the request language and compresses multiple missing details into one actionable reply
 
 ### 2. `compile`: keep the structure when the request is already strong
 

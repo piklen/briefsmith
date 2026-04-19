@@ -1,8 +1,8 @@
 import type { CompileDecision, CompilePromptInput, SlotName, SlotResolutionSource } from "../core/types.js";
 import { buildFollowUpQuestions } from "./clarifier.js";
+import { prefersChinese } from "./language.js";
 import { detectMissingSlots } from "./slot-detector.js";
 
-const CHINESE_PATTERN = /[\u4e00-\u9fff]/;
 const SLOT_RENDER_ORDER: SlotName[] = ["target", "problem_signal", "success_criteria", "constraints", "verification", "output_format"];
 const EXPLICIT_SUCCESS_PATTERNS = [
   /((?:success(?:\s+means|\s+is|\s+looks like)?)[^,.;!?\n]{0,96})/i,
@@ -162,7 +162,12 @@ export function compileOrClarify(
     ...explicit.confidence
   };
   const unresolved = missingResult.missing.filter((slot) => !resolvedSlots[slot]);
-  const followUpQuestions = buildFollowUpQuestions(unresolved);
+  const followUpQuestions = buildFollowUpQuestions({
+    rawInput,
+    missing: unresolved,
+    resolvedSlots,
+    inferredDefaults
+  });
 
   if (shouldAskFollowUp(unresolved)) {
     return {
@@ -470,10 +475,6 @@ function extractProblemSignal(text: string): string | null {
   }
 
   return null;
-}
-
-function prefersChinese(rawInput: string, inferredDefaults: Record<string, unknown>): boolean {
-  return CHINESE_PATTERN.test(rawInput) || inferredDefaults.preferred_language === "zh-CN";
 }
 
 function renderSlotEntries(values: Partial<Record<SlotName, string>>): string {
