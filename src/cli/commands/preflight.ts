@@ -37,6 +37,7 @@ interface PreflightPayload {
     slotConfidenceThresholds: Record<SlotName, number>;
     confidenceGateApplied: boolean;
     resolvedSlotSources: Partial<Record<SlotName, SlotResolutionSource>>;
+    historySlotIds: Partial<Record<SlotName, string>>;
     resolvedSlotConfidence: Partial<Record<SlotName, number>>;
     historyMatchCount: number;
     historyMatches: Array<{
@@ -78,6 +79,7 @@ export async function runPreflightCommand(args: string[], context: CliContext): 
           slotConfidenceThresholds,
           confidenceGateApplied,
           resolvedSlotSources: {},
+          historySlotIds: {},
           resolvedSlotConfidence: {},
           historyMatchCount: 0,
           historyMatches: []
@@ -103,14 +105,23 @@ export async function runPreflightCommand(args: string[], context: CliContext): 
           projectPath: context.cwd
         })
       : [];
-    const snippets = historyMatches.map((row) => row.promptText);
-    const historyEvidence = historyMatches.map((entry) => ({
+    const decision = compileOrClarify(
+      options.rawInput,
+      profile.inferred,
+      historyMatches.map((row) => ({
+        id: row.id,
+        text: row.promptText
+      })),
+      continuationSlots
+    );
+    const usedHistoryIdSet = new Set(decision.usedHistoryIds);
+    const usedHistoryEntries = historyMatches.filter((row) => usedHistoryIdSet.has(row.id));
+    const snippets = usedHistoryEntries.map((row) => row.promptText);
+    const historyEvidence = usedHistoryEntries.map((entry) => ({
       id: entry.id,
       tool: entry.tool,
       preview: buildPromptPreview(entry.promptText)
     }));
-    const decision = compileOrClarify(options.rawInput, profile.inferred, snippets, continuationSlots);
-    const usedHistoryIds = historyMatches.map((row) => row.id);
     const lowConfidenceSlots = findLowConfidenceSlots(
       decision.resolvedSlotConfidence,
       slotConfidenceThresholds
@@ -135,7 +146,7 @@ export async function runPreflightCommand(args: string[], context: CliContext): 
         resolvedSlots: decision.resolvedSlots,
         targetFramework: options.framework,
         targetHost: options.host,
-        usedHistoryIds
+        usedHistoryIds: decision.usedHistoryIds
       });
 
       return outputPayload(
@@ -147,7 +158,7 @@ export async function runPreflightCommand(args: string[], context: CliContext): 
           questions,
           resolvedSlots: decision.resolvedSlots,
           compiledPrompt: "",
-          usedHistoryIds,
+          usedHistoryIds: decision.usedHistoryIds,
           evidence: {
             policyMode: policy.mode,
             initialMissingSlots: decision.initialMissing,
@@ -157,8 +168,9 @@ export async function runPreflightCommand(args: string[], context: CliContext): 
             slotConfidenceThresholds,
             confidenceGateApplied,
             resolvedSlotSources: decision.resolvedSlotSources,
+            historySlotIds: decision.resolvedSlotHistoryIds,
             resolvedSlotConfidence: decision.resolvedSlotConfidence,
-            historyMatchCount: historyMatches.length,
+            historyMatchCount: usedHistoryEntries.length,
             historyMatches: historyEvidence
           }
         },
@@ -182,7 +194,7 @@ export async function runPreflightCommand(args: string[], context: CliContext): 
       resolvedSlots: decision.resolvedSlots,
       targetFramework: options.framework,
       targetHost: options.host,
-      usedHistoryIds
+      usedHistoryIds: decision.usedHistoryIds
     });
 
     return outputPayload(
@@ -194,7 +206,7 @@ export async function runPreflightCommand(args: string[], context: CliContext): 
         questions: [],
         resolvedSlots: decision.resolvedSlots,
         compiledPrompt,
-        usedHistoryIds,
+        usedHistoryIds: decision.usedHistoryIds,
         evidence: {
           policyMode: policy.mode,
           initialMissingSlots: decision.initialMissing,
@@ -204,8 +216,9 @@ export async function runPreflightCommand(args: string[], context: CliContext): 
           slotConfidenceThresholds,
           confidenceGateApplied,
           resolvedSlotSources: decision.resolvedSlotSources,
+          historySlotIds: decision.resolvedSlotHistoryIds,
           resolvedSlotConfidence: decision.resolvedSlotConfidence,
-          historyMatchCount: historyMatches.length,
+          historyMatchCount: usedHistoryEntries.length,
           historyMatches: historyEvidence
         }
       },
@@ -243,6 +256,9 @@ function renderEvidenceLines(evidence: PreflightPayload["evidence"]): string {
   const slotSources = Object.entries(evidence.resolvedSlotSources)
     .map(([slot, source]) => `${slot}=${source}`)
     .join(", ");
+  const historySlots = Object.entries(evidence.historySlotIds)
+    .map(([slot, id]) => `${slot}=${id}`)
+    .join(", ");
   const slotConfidence = Object.entries(evidence.resolvedSlotConfidence)
     .map(([slot, value]) => `${slot}=${value.toFixed(2)}`)
     .join(", ");
@@ -258,6 +274,7 @@ function renderEvidenceLines(evidence: PreflightPayload["evidence"]): string {
     `- confidence_gate_applied: ${String(evidence.confidenceGateApplied)}`,
     `- history_matches: ${String(evidence.historyMatchCount)}`,
     `- history_preview: ${renderHistoryPreviews(evidence.historyMatches)}`,
+    `- history_slots: ${historySlots || "none"}`,
     `- slot_sources: ${slotSources || "none"}`,
     `- slot_confidence: ${slotConfidence || "none"}`
   ].join("\n");

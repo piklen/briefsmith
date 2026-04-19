@@ -52,6 +52,11 @@ export interface CompilePromptInput {
   retrievedPromptSnippets: string[];
 }
 
+export interface RetrievedPromptSnippet {
+  id?: string;
+  text: string;
+}
+
 export interface CompileDecision {
   kind: "questions" | "compiled";
   text: string;
@@ -59,7 +64,9 @@ export interface CompileDecision {
   initialMissing: SlotName[];
   resolvedSlots: Partial<Record<SlotName, string>>;
   resolvedSlotSources: Partial<Record<SlotName, SlotResolutionSource>>;
+  resolvedSlotHistoryIds: Partial<Record<SlotName, string>>;
   resolvedSlotConfidence: Partial<Record<SlotName, number>>;
+  usedHistoryIds: string[];
   followUpQuestions: string[];
 }
 

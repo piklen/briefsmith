@@ -34,8 +34,18 @@ export async function runCompileCommand(
           projectPath: context.cwd
         })
       : [];
-    const snippets = historyMatches.map((row) => row.promptText);
-    const decision = compileOrClarify(rawInput, profile.inferred, snippets, continuationSlots);
+    const decision = compileOrClarify(
+      rawInput,
+      profile.inferred,
+      historyMatches.map((row) => ({
+        id: row.id,
+        text: row.promptText
+      })),
+      continuationSlots
+    );
+    const usedHistoryIdSet = new Set(decision.usedHistoryIds);
+    const usedHistoryEntries = historyMatches.filter((row) => usedHistoryIdSet.has(row.id));
+    const snippets = usedHistoryEntries.map((row) => row.promptText);
 
     if (decision.kind === "questions") {
       compileSessionRepository.save({
@@ -46,7 +56,7 @@ export async function runCompileCommand(
         resolvedSlots: decision.resolvedSlots,
         targetFramework: framework,
         targetHost: "cli",
-        usedHistoryIds: historyMatches.map((row) => row.id)
+        usedHistoryIds: decision.usedHistoryIds
       });
       context.stdout(decision.text);
       return 0;
@@ -70,7 +80,7 @@ export async function runCompileCommand(
       resolvedSlots: decision.resolvedSlots,
       targetFramework: framework,
       targetHost: "cli",
-      usedHistoryIds: historyMatches.map((row) => row.id)
+      usedHistoryIds: decision.usedHistoryIds
     });
 
     context.stdout(output);

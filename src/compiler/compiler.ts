@@ -1,4 +1,10 @@
-import type { CompileDecision, CompilePromptInput, SlotName, SlotResolutionSource } from "../core/types.js";
+import type {
+  CompileDecision,
+  CompilePromptInput,
+  RetrievedPromptSnippet,
+  SlotName,
+  SlotResolutionSource
+} from "../core/types.js";
 import { buildFollowUpQuestions } from "./clarifier.js";
 import { prefersChinese } from "./language.js";
 import { detectMissingSlots } from "./slot-detector.js";
@@ -110,6 +116,13 @@ const HEURISTIC_CONFIDENCE = 0.68;
 const VERIFICATION_CONFIDENCE = 0.78;
 const DEFAULT_CONFIDENCE = 0.55;
 
+interface SlotResolutionCandidate {
+  value: string;
+  source: SlotResolutionSource;
+  confidence: number;
+  historySnippet?: RetrievedPromptSnippet;
+}
+
 export function compilePrompt(input: CompilePromptInput): string {
   const defaults = renderContextEntries(input.inferredDefaults);
   const answers = renderSlotEntries(input.followUpAnswers);
@@ -140,16 +153,17 @@ export function compilePrompt(input: CompilePromptInput): string {
 export function compileOrClarify(
   rawInput: string,
   inferredDefaults: Record<string, unknown>,
-  retrievedPromptSnippets: string[],
+  retrievedPromptSnippets: Array<string | RetrievedPromptSnippet>,
   continuationSlots: Partial<Record<SlotName, string>> = {}
 ): CompileDecision {
+  const historySnippets = normalizeHistorySnippets(retrievedPromptSnippets);
   const missingResult = detectMissingSlots(rawInput);
   const explicit = extractExplicitSlotValues(rawInput);
   const resolution = resolveMissingSlots(
     rawInput,
     missingResult.missing,
     inferredDefaults,
-    retrievedPromptSnippets,
+    historySnippets,
     continuationSlots
   );
   const resolvedSlots = {
@@ -164,6 +178,8 @@ export function compileOrClarify(
     ...resolution.confidence,
     ...explicit.confidence
   };
+  const resolvedSlotHistoryIds = collectResolvedSlotHistoryIds(resolution.historySnippets);
+  const usedHistoryIds = collectUsedHistoryIds(resolution.historySnippets);
   const unresolved = missingResult.missing.filter((slot) => !resolvedSlots[slot]);
   const followUpQuestions = buildFollowUpQuestions({
     rawInput,
@@ -180,16 +196,19 @@ export function compileOrClarify(
       initialMissing: missingResult.missing,
       resolvedSlots,
       resolvedSlotSources,
+      resolvedSlotHistoryIds,
       resolvedSlotConfidence,
+      usedHistoryIds,
       followUpQuestions
     };
   }
 
+  const effectivePromptSnippets = collectUsedHistoryTexts(resolution.historySnippets);
   const compiled = compilePrompt({
     rawInput,
     inferredDefaults,
     followUpAnswers: resolvedSlots,
-    retrievedPromptSnippets
+    retrievedPromptSnippets: effectivePromptSnippets
   });
 
   return {
@@ -199,7 +218,9 @@ export function compileOrClarify(
     initialMissing: missingResult.missing,
     resolvedSlots,
     resolvedSlotSources,
+    resolvedSlotHistoryIds,
     resolvedSlotConfidence,
+    usedHistoryIds,
     followUpQuestions: []
   };
 }
@@ -255,32 +276,43 @@ function resolveMissingSlots(
   rawInput: string,
   missing: SlotName[],
   inferredDefaults: Record<string, unknown>,
-  retrievedPromptSnippets: string[],
+  retrievedPromptSnippets: RetrievedPromptSnippet[],
   continuationSlots: Partial<Record<SlotName, string>>
 ): {
   values: Partial<Record<SlotName, string>>;
   sources: Partial<Record<SlotName, SlotResolutionSource>>;
   confidence: Partial<Record<SlotName, number>>;
+  historySnippets: Partial<Record<SlotName, RetrievedPromptSnippet>>;
 } {
   const values: Partial<Record<SlotName, string>> = {};
   const sources: Partial<Record<SlotName, SlotResolutionSource>> = {};
   const confidence: Partial<Record<SlotName, number>> = {};
+  const historySnippets: Partial<Record<SlotName, RetrievedPromptSnippet>> = {};
+
+  const assignResolvedSlot = (slot: SlotName, candidate: SlotResolutionCandidate): void => {
+    values[slot] = candidate.value;
+    sources[slot] = candidate.source;
+    confidence[slot] = candidate.confidence;
+    if (candidate.historySnippet) {
+      historySnippets[slot] = candidate.historySnippet;
+    }
+  };
 
   for (const slot of missing) {
     const continuationValue = continuationSlots[slot];
     if (continuationValue) {
-      values[slot] = continuationValue;
-      sources[slot] = "session";
-      confidence[slot] = SESSION_CONFIDENCE;
+      assignResolvedSlot(slot, {
+        value: continuationValue,
+        source: "session",
+        confidence: SESSION_CONFIDENCE
+      });
       continue;
     }
 
     if (slot === "target") {
       const target = inferTarget(rawInput);
       if (target) {
-        values.target = target.value;
-        sources.target = target.source;
-        confidence.target = target.confidence;
+        assignResolvedSlot("target", target);
       }
       continue;
     }
@@ -288,9 +320,7 @@ function resolveMissingSlots(
     if (slot === "success_criteria") {
       const success = inferSuccessCriteria(rawInput, inferredDefaults);
       if (success) {
-        values.success_criteria = success.value;
-        sources.success_criteria = success.source;
-        confidence.success_criteria = success.confidence;
+        assignResolvedSlot("success_criteria", success);
       }
       continue;
     }
@@ -298,9 +328,7 @@ function resolveMissingSlots(
     if (slot === "problem_signal") {
       const problemSignal = inferProblemSignal(rawInput, retrievedPromptSnippets);
       if (problemSignal) {
-        values.problem_signal = problemSignal.value;
-        sources.problem_signal = problemSignal.source;
-        confidence.problem_signal = problemSignal.confidence;
+        assignResolvedSlot("problem_signal", problemSignal);
       }
       continue;
     }
@@ -308,9 +336,7 @@ function resolveMissingSlots(
     if (slot === "constraints") {
       const constraint = inferConstraint(rawInput, retrievedPromptSnippets);
       if (constraint) {
-        values.constraints = constraint.value;
-        sources.constraints = constraint.source;
-        confidence.constraints = constraint.confidence;
+        assignResolvedSlot("constraints", constraint);
       }
       continue;
     }
@@ -318,23 +344,23 @@ function resolveMissingSlots(
     if (slot === "verification") {
       const verification = inferVerification(rawInput, inferredDefaults);
       if (verification) {
-        values.verification = verification.value;
-        sources.verification = verification.source;
-        confidence.verification = verification.confidence;
+        assignResolvedSlot("verification", verification);
       }
       continue;
     }
 
     if (slot === "output_format") {
-      values.output_format = prefersChinese(rawInput, inferredDefaults)
-        ? "结构化任务说明"
-        : "Structured task brief";
-      sources.output_format = "default";
-      confidence.output_format = DEFAULT_CONFIDENCE;
+      assignResolvedSlot("output_format", {
+        value: prefersChinese(rawInput, inferredDefaults)
+          ? "结构化任务说明"
+          : "Structured task brief",
+        source: "default",
+        confidence: DEFAULT_CONFIDENCE
+      });
     }
   }
 
-  return { values, sources, confidence };
+  return { values, sources, confidence, historySnippets };
 }
 
 function shouldAskFollowUp(unresolved: SlotName[]): boolean {
@@ -403,20 +429,21 @@ function inferVerification(
 
 function inferProblemSignal(
   rawInput: string,
-  retrievedPromptSnippets: string[]
-): { value: string; source: SlotResolutionSource; confidence: number } | null {
+  retrievedPromptSnippets: RetrievedPromptSnippet[]
+): SlotResolutionCandidate | null {
   const direct = extractProblemSignal(rawInput);
   if (direct) {
     return { value: direct, source: "input", confidence: INPUT_CONFIDENCE };
   }
 
   for (const snippet of retrievedPromptSnippets) {
-    const fromHistory = extractProblemSignal(snippet);
+    const fromHistory = extractProblemSignal(snippet.text);
     if (fromHistory) {
       return {
         value: fromHistory,
         source: "history",
-        confidence: HISTORY_PROBLEM_SIGNAL_CONFIDENCE
+        confidence: HISTORY_PROBLEM_SIGNAL_CONFIDENCE,
+        historySnippet: snippet
       };
     }
   }
@@ -426,17 +453,22 @@ function inferProblemSignal(
 
 function inferConstraint(
   rawInput: string,
-  retrievedPromptSnippets: string[]
-): { value: string; source: SlotResolutionSource; confidence: number } | null {
+  retrievedPromptSnippets: RetrievedPromptSnippet[]
+): SlotResolutionCandidate | null {
   const direct = extractConstraint(rawInput);
   if (direct) {
     return { value: direct, source: "input", confidence: INPUT_CONFIDENCE };
   }
 
   for (const snippet of retrievedPromptSnippets) {
-    const fromHistory = extractConstraint(snippet);
+    const fromHistory = extractConstraintFromHistory(snippet.text);
     if (fromHistory) {
-      return { value: fromHistory, source: "history", confidence: HISTORY_CONFIDENCE };
+      return {
+        value: fromHistory,
+        source: "history",
+        confidence: HISTORY_CONFIDENCE,
+        historySnippet: snippet
+      };
     }
   }
 
@@ -451,6 +483,19 @@ function extractConstraint(text: string): string | null {
   }
 
   return normalized.replace("外部命令行为", "外部行为（命令行为）");
+}
+
+function extractConstraintFromHistory(text: string): string | null {
+  const constraint = extractConstraint(text);
+  if (!constraint) {
+    return null;
+  }
+
+  return isMetaConversationalConstraint(constraint) ? null : constraint;
+}
+
+function isMetaConversationalConstraint(text: string): boolean {
+  return /(ai|用户|prompt|提示词|skill|宿主|问用户|追问|follow[- ]?up|context|上下文|请求本身)/i.test(text);
 }
 
 function extractExplicitSuccessCriteria(text: string): string | null {
@@ -497,6 +542,56 @@ function renderSlotEntries(values: Partial<Record<SlotName, string>>): string {
     });
 
   return lines.join("\n");
+}
+
+function normalizeHistorySnippets(
+  retrievedPromptSnippets: Array<string | RetrievedPromptSnippet>
+): RetrievedPromptSnippet[] {
+  return retrievedPromptSnippets.map((snippet) =>
+    typeof snippet === "string" ? { text: snippet } : snippet
+  );
+}
+
+function collectResolvedSlotHistoryIds(
+  historySnippets: Partial<Record<SlotName, RetrievedPromptSnippet>>
+): Partial<Record<SlotName, string>> {
+  const slotIds: Partial<Record<SlotName, string>> = {};
+
+  for (const [slot, snippet] of Object.entries(historySnippets) as Array<[SlotName, RetrievedPromptSnippet]>) {
+    if (snippet.id) {
+      slotIds[slot] = snippet.id;
+    }
+  }
+
+  return slotIds;
+}
+
+function collectUsedHistoryIds(
+  historySnippets: Partial<Record<SlotName, RetrievedPromptSnippet>>
+): string[] {
+  const ids = new Set<string>();
+
+  for (const snippet of Object.values(historySnippets)) {
+    if (snippet?.id) {
+      ids.add(snippet.id);
+    }
+  }
+
+  return [...ids];
+}
+
+function collectUsedHistoryTexts(
+  historySnippets: Partial<Record<SlotName, RetrievedPromptSnippet>>
+): string[] {
+  const texts = new Set<string>();
+
+  for (const snippet of Object.values(historySnippets)) {
+    if (snippet?.text) {
+      texts.add(snippet.text);
+    }
+  }
+
+  return [...texts];
 }
 
 function renderContextEntries(values: Record<string, unknown>): string {

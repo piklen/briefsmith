@@ -435,6 +435,150 @@ test("runCli preflight reuses the latest same-project compile session for contin
   assert.equal(payload.evidence.resolvedSlotSources.verification, "session");
 });
 
+test("runCli preflight does not turn meta history text into execution constraints", async () => {
+  const root = mkdtempSync(join(tmpdir(), "prompt-skill-project-"));
+  const homeDir = mkdtempSync(join(tmpdir(), "prompt-skill-home-"));
+  const database = new Database(databasePath(globalDataDir(homeDir)));
+  const promptRepository = new PromptRepository(database);
+
+  promptRepository.upsertMany([
+    {
+      id: "codex:meta-history-1",
+      tool: "codex",
+      projectPath: root,
+      sessionId: "session-meta-1",
+      timestamp: "2026-04-19T10:00:00.000Z",
+      promptText: "帮我优化，如果不能那需要让ai去问用户。",
+      sourceFile: "/tmp/source.jsonl",
+      sourceOffset: 0,
+      fingerprint: "fp-meta-history-1",
+      isFavorite: false,
+      tags: [],
+      importedAt: "2026-04-19T10:00:00.000Z"
+    }
+  ]);
+  database.close();
+
+  const output: string[] = [];
+  const exitCode = await runCli(["preflight", "帮我优化", "--host", "codex", "--json"], {
+    cwd: root,
+    homeDir,
+    stdout: (line) => output.push(line),
+    stderr: (line) => output.push(line)
+  });
+
+  const payload = JSON.parse(output.join("\n")) as {
+    action: string;
+    usedHistoryIds: string[];
+    resolvedSlots: Record<string, string>;
+    evidence: {
+      initialMissingSlots: string[];
+      unresolvedSlots: string[];
+      historyMatchCount: number;
+      historyMatches: Array<{
+        id: string;
+        tool: string;
+        preview: string;
+      }>;
+      resolvedSlotSources: Record<string, string>;
+    };
+  };
+
+  assert.equal(exitCode, 0);
+  assert.equal(payload.action, "ask");
+  assert.equal(payload.evidence.initialMissingSlots.includes("target"), true);
+  assert.equal(payload.evidence.unresolvedSlots.includes("target"), true);
+  assert.deepEqual(payload.usedHistoryIds, []);
+  assert.equal(payload.evidence.historyMatchCount, 0);
+  assert.deepEqual(payload.evidence.historyMatches, []);
+  assert.equal(payload.resolvedSlots.constraints, undefined);
+  assert.equal(payload.evidence.resolvedSlotSources.constraints, undefined);
+});
+
+test("runCli preflight only reports the history entry that actually resolved a slot", async () => {
+  const root = mkdtempSync(join(tmpdir(), "prompt-skill-project-"));
+  const homeDir = mkdtempSync(join(tmpdir(), "prompt-skill-home-"));
+  const database = new Database(databasePath(globalDataDir(homeDir)));
+  const promptRepository = new PromptRepository(database);
+  const profileRepository = new ProfileRepository(database);
+
+  promptRepository.upsertMany([
+    {
+      id: "codex:meta-history-2",
+      tool: "codex",
+      projectPath: root,
+      sessionId: "session-meta-2",
+      timestamp: "2026-04-19T10:00:00.000Z",
+      promptText: "优化一下这个导入逻辑，如果不能那需要让ai去问用户。",
+      sourceFile: "/tmp/source.jsonl",
+      sourceOffset: 0,
+      fingerprint: "fp-meta-history-2",
+      isFavorite: false,
+      tags: [],
+      importedAt: "2026-04-19T10:00:00.000Z"
+    },
+    {
+      id: "codex:constraint-history-2",
+      tool: "codex",
+      projectPath: root,
+      sessionId: "session-constraint-2",
+      timestamp: "2026-04-19T10:00:01.000Z",
+      promptText: "优化导入逻辑并保持外部命令行为不变",
+      sourceFile: "/tmp/source.jsonl",
+      sourceOffset: 1,
+      fingerprint: "fp-constraint-history-2",
+      isFavorite: false,
+      tags: [],
+      importedAt: "2026-04-19T10:00:01.000Z"
+    }
+  ]);
+  profileRepository.save({
+    scope: "global",
+    confirmed: {},
+    inferred: {
+      preferred_language: "zh-CN"
+    },
+    signals: {},
+    updatedAt: "2026-04-19T10:00:00.000Z"
+  });
+  database.close();
+
+  const output: string[] = [];
+  const exitCode = await runCli(["preflight", "优化一下这个导入逻辑", "--host", "cli", "--json"], {
+    cwd: root,
+    homeDir,
+    stdout: (line) => output.push(line),
+    stderr: (line) => output.push(line)
+  });
+
+  const payload = JSON.parse(output.join("\n")) as {
+    action: string;
+    usedHistoryIds: string[];
+    evidence: {
+      historyMatchCount: number;
+      historySlotIds: Record<string, string>;
+      historyMatches: Array<{
+        id: string;
+        tool: string;
+        preview: string;
+      }>;
+    };
+  };
+
+  assert.equal(exitCode, 0);
+  assert.equal(payload.action, "compile");
+  assert.deepEqual(payload.usedHistoryIds, ["codex:constraint-history-2"]);
+  assert.equal(payload.evidence.historyMatchCount, 1);
+  assert.equal(payload.evidence.historySlotIds.constraints, "codex:constraint-history-2");
+  assert.deepEqual(payload.evidence.historyMatches, [
+    {
+      id: "codex:constraint-history-2",
+      tool: "codex",
+      preview: "优化导入逻辑并保持外部命令行为不变"
+    }
+  ]);
+});
+
 test("runCli preflight respects project-level confidence threshold overrides", async () => {
   const root = mkdtempSync(join(tmpdir(), "prompt-skill-project-"));
   const promptSkillDir = join(root, ".prompt-skill");

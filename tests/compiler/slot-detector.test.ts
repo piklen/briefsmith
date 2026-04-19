@@ -16,6 +16,12 @@ test("detectMissingSlots treats continuation-only optimize requests as missing a
   assert.equal(result.missing.includes("target"), true);
 });
 
+test("detectMissingSlots treats polite action-only optimize requests as missing a target", () => {
+  const result = detectMissingSlots("帮我优化");
+
+  assert.equal(result.missing.includes("target"), true);
+});
+
 test("compilePrompt emits a structured task brief", () => {
   const output = compilePrompt({
     rawInput: "optimize this query",
@@ -137,4 +143,44 @@ test("compileOrClarify can reuse continuation context from the latest same-proje
   assert.equal(result.resolvedSlotSources.target, "session");
   assert.equal(result.resolvedSlotSources.constraints, "session");
   assert.equal(result.resolvedSlotSources.verification, "session");
+});
+
+test("compileOrClarify ignores meta conversational constraints from history", () => {
+  const result = compileOrClarify(
+    "帮我优化",
+    {
+      preferred_language: "zh-CN"
+    },
+    ["本项目想要做的事情是通过skill来帮助ai拿到的提示词更好，如果不能那需要让ai去问用户。"]
+  );
+
+  assert.equal(result.kind, "questions");
+  assert.equal(result.resolvedSlots.constraints, undefined);
+  assert.equal(result.resolvedSlotSources.constraints, undefined);
+});
+
+test("compileOrClarify tracks the exact history entry used for a resolved slot", () => {
+  const result = compileOrClarify(
+    "优化一下这个导入逻辑",
+    {
+      preferred_language: "zh-CN"
+    },
+    [
+      {
+        id: "codex:meta-history",
+        text: "优化一下这个导入逻辑，如果不能那需要让ai去问用户。"
+      },
+      {
+        id: "codex:constraint-history",
+        text: "优化导入逻辑并保持外部命令行为不变"
+      }
+    ]
+  );
+
+  assert.equal(result.kind, "compiled");
+  assert.equal(result.resolvedSlotSources.constraints, "history");
+  assert.equal(result.resolvedSlotHistoryIds.constraints, "codex:constraint-history");
+  assert.deepEqual(result.usedHistoryIds, ["codex:constraint-history"]);
+  assert.equal(result.text.includes("优化导入逻辑并保持外部命令行为不变"), true);
+  assert.equal(result.text.includes("如果不能那需要让ai去问用户"), false);
 });

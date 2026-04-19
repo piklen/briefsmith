@@ -104,3 +104,124 @@ test("runCli compile uses same-project continuation context without attaching tr
   assert.deepEqual(latest?.usedHistoryIds, []);
   assert.equal(latest?.compiledPrompt.includes("Relevant Prompt Memory\n- none"), true);
 });
+
+test("runCli compile does not persist matched history when no slot resolves from it", async () => {
+  const root = mkdtempSync(join(tmpdir(), "prompt-skill-project-"));
+  const homeDir = mkdtempSync(join(tmpdir(), "prompt-skill-home-"));
+  const database = new Database(databasePath(globalDataDir(homeDir)));
+  const promptRepository = new PromptRepository(database);
+  const profileRepository = new ProfileRepository(database);
+
+  promptRepository.upsertMany([
+    {
+      id: "codex:meta-history-compile-1",
+      tool: "codex",
+      projectPath: root,
+      sessionId: "session-meta-compile-1",
+      timestamp: "2026-04-19T10:00:00.000Z",
+      promptText: "帮我优化这个导入逻辑，如果不能那需要让ai去问用户。",
+      sourceFile: "/tmp/source.jsonl",
+      sourceOffset: 0,
+      fingerprint: "fp-meta-history-compile-1",
+      isFavorite: false,
+      tags: [],
+      importedAt: "2026-04-19T10:00:00.000Z"
+    }
+  ]);
+  profileRepository.save({
+    scope: "global",
+    confirmed: {},
+    inferred: {
+      preferred_language: "zh-CN"
+    },
+    signals: {},
+    updatedAt: "2026-04-19T10:00:00.000Z"
+  });
+  database.close();
+
+  const output: string[] = [];
+  const exitCode = await runCli(
+    ["compile", "帮我优化这个导入逻辑，保持外部命令行为不变，并运行相关测试验证"],
+    {
+      cwd: root,
+      homeDir,
+      stdout: (line) => output.push(line),
+      stderr: (line) => output.push(line)
+    }
+  );
+
+  const verifyDatabase = new Database(databasePath(globalDataDir(homeDir)));
+  const latest = new CompileSessionRepository(verifyDatabase).latest();
+  verifyDatabase.close();
+
+  assert.equal(exitCode, 0);
+  assert.deepEqual(latest?.usedHistoryIds, []);
+  assert.equal(latest?.compiledPrompt.includes("Relevant Prompt Memory\n- none"), true);
+  assert.equal(output.some((line) => line.includes("Relevant Prompt Memory\n- none")), true);
+});
+
+test("runCli compile persists only the exact history entry that resolved a slot", async () => {
+  const root = mkdtempSync(join(tmpdir(), "prompt-skill-project-"));
+  const homeDir = mkdtempSync(join(tmpdir(), "prompt-skill-home-"));
+  const database = new Database(databasePath(globalDataDir(homeDir)));
+  const promptRepository = new PromptRepository(database);
+  const profileRepository = new ProfileRepository(database);
+
+  promptRepository.upsertMany([
+    {
+      id: "codex:meta-history-compile-2",
+      tool: "codex",
+      projectPath: root,
+      sessionId: "session-meta-compile-2",
+      timestamp: "2026-04-19T10:00:00.000Z",
+      promptText: "优化一下这个导入逻辑，如果不能那需要让ai去问用户。",
+      sourceFile: "/tmp/source.jsonl",
+      sourceOffset: 0,
+      fingerprint: "fp-meta-history-compile-2",
+      isFavorite: false,
+      tags: [],
+      importedAt: "2026-04-19T10:00:00.000Z"
+    },
+    {
+      id: "codex:constraint-history-compile-2",
+      tool: "codex",
+      projectPath: root,
+      sessionId: "session-constraint-compile-2",
+      timestamp: "2026-04-19T10:00:01.000Z",
+      promptText: "优化导入逻辑并保持外部命令行为不变",
+      sourceFile: "/tmp/source.jsonl",
+      sourceOffset: 1,
+      fingerprint: "fp-constraint-history-compile-2",
+      isFavorite: false,
+      tags: [],
+      importedAt: "2026-04-19T10:00:01.000Z"
+    }
+  ]);
+  profileRepository.save({
+    scope: "global",
+    confirmed: {},
+    inferred: {
+      preferred_language: "zh-CN"
+    },
+    signals: {},
+    updatedAt: "2026-04-19T10:00:00.000Z"
+  });
+  database.close();
+
+  const output: string[] = [];
+  const exitCode = await runCli(["compile", "优化一下这个导入逻辑"], {
+    cwd: root,
+    homeDir,
+    stdout: (line) => output.push(line),
+    stderr: (line) => output.push(line)
+  });
+
+  const verifyDatabase = new Database(databasePath(globalDataDir(homeDir)));
+  const latest = new CompileSessionRepository(verifyDatabase).latest();
+  verifyDatabase.close();
+
+  assert.equal(exitCode, 0);
+  assert.deepEqual(latest?.usedHistoryIds, ["codex:constraint-history-compile-2"]);
+  assert.equal(latest?.compiledPrompt.includes("优化导入逻辑并保持外部命令行为不变"), true);
+  assert.equal(latest?.compiledPrompt.includes("如果不能那需要让ai去问用户"), false);
+});
