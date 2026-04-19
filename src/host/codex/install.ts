@@ -2,7 +2,10 @@ import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { ensureDir, pathExists } from "../../utils/filesystem.js";
 import type { HostInstallOptions, HostInstallResult } from "../base.js";
-import { readBundledTemplate } from "../template-loader.js";
+import {
+  renderPromptMemoryCodexAgentsSnippet,
+  renderPromptMemoryCodexSkill
+} from "../prompt-memory-skill.js";
 
 const START_MARKER = "<!-- prompt-skill:start -->";
 const END_MARKER = "<!-- prompt-skill:end -->";
@@ -18,9 +21,7 @@ export async function installCodexAdapter(options: HostInstallOptions): Promise<
 async function installCodexProjectRules(projectRoot: string): Promise<HostInstallResult> {
   const agentsPath = join(projectRoot, "AGENTS.md");
   const existing = (await pathExists(agentsPath)) ? await readFile(agentsPath, "utf8") : "";
-  const snippet = (await readCodexAgentsTemplate())
-    .replaceAll("__PROMPT_SKILL_START__", START_MARKER)
-    .replaceAll("__PROMPT_SKILL_END__", END_MARKER);
+  const snippet = await renderPromptMemoryCodexAgentsSnippet(START_MARKER, END_MARKER);
 
   const nextContent = existing.includes(START_MARKER)
     ? replaceManagedBlock(existing, snippet)
@@ -42,7 +43,7 @@ async function installCodexGlobalSkill(homeDir: string): Promise<HostInstallResu
   const skillDir = join(homeDir, ".codex", "skills", "prompt-memory");
   const skillPath = join(skillDir, "SKILL.md");
   await ensureDir(skillDir);
-  await writeFile(skillPath, await readCodexSkillTemplate(), "utf8");
+  await writeFile(skillPath, await renderPromptMemoryCodexSkill(), "utf8");
 
   return {
     adapter: "codex",
@@ -65,12 +66,4 @@ function replaceManagedBlock(existing: string, snippet: string): string {
 
 function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-
-async function readCodexAgentsTemplate(): Promise<string> {
-  return readBundledTemplate("templates/codex/AGENTS.snippet.md", import.meta.url);
-}
-
-async function readCodexSkillTemplate(): Promise<string> {
-  return readBundledTemplate("templates/codex/SKILL.md", import.meta.url);
 }

@@ -2,7 +2,7 @@ import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { ensureDir, pathExists } from "../../utils/filesystem.js";
 import type { HostInstallOptions, HostInstallResult } from "../base.js";
-import { readBundledTemplate } from "../template-loader.js";
+import { renderPromptMemoryClaudeSkill } from "../prompt-memory-skill.js";
 
 interface ClaudeSettings {
   hooks?: Record<string, Array<{ matcher?: string; hooks: Array<Record<string, unknown>> }>>;
@@ -49,7 +49,7 @@ export async function installClaudeAdapter(options: Omit<HostInstallOptions, "ho
   await writeFile(settingsPath, `${JSON.stringify(settings, null, 2)}\n`, "utf8");
   writtenFiles.push(settingsPath);
 
-  await writeFile(skillPath, await readClaudeSkillTemplate(), "utf8");
+  await writeFile(skillPath, await renderPromptMemoryClaudeSkill(), "utf8");
   writtenFiles.push(skillPath);
 
   return {
@@ -70,8 +70,4 @@ async function loadClaudeSettings(settingsPath: string): Promise<ClaudeSettings>
 
   const text = await readFile(settingsPath, "utf8");
   return JSON.parse(text) as ClaudeSettings;
-}
-
-async function readClaudeSkillTemplate(): Promise<string> {
-  return readBundledTemplate("templates/claude/SKILL.md", import.meta.url);
 }

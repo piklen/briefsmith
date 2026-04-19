@@ -1,10 +1,34 @@
 # Prompt Skill Runtime
 
-本项目当前已经从“本地 prompt 采集菜单栏应用”收敛为一个 **skill-first 的 Prompt Memory / Prompt Compiler 运行时**。
+本项目当前已经从“本地 prompt 采集菜单栏应用”收敛为一个 **Prompt Quality Gate / Task Brief Compiler**。
 
-当前目标不是先做 GUI，而是先把下面这条链路做实：
+它解决的核心问题不是“prompt 写得够不够漂亮”，而是：
+
+- 用户给 AI 的输入经常只有模糊意图，例如“帮我优化”。
+- AI 真正需要的是可执行任务说明，而不是一句未展开的口语化请求。
+- 如果能从历史、profile 和项目上下文里高置信补全，就直接补全。
+- 如果仍然缺关键信息，就应该明确追问，而不是让 AI 瞎猜。
+
+因此这个项目的当前目标，是把下面这条链路做实：
 
 `本地历史 prompt 导入 -> 查找 / 收藏 -> 用户 profile 刷新 -> preflight 追问或编译 -> host adapter 消费`
+
+更准确地说：
+
+- `import / find / favorites / profile` 是输入质量增强的支撑能力。
+- `compile / preflight / adapters` 才是产品主链路。
+- 这个仓库的核心价值是把模糊用户输入压缩成更稳定、更低歧义的执行前 brief。
+
+当前 skill-first 打包约定：
+
+- `[.agents/skills/prompt-memory/SKILL.md](/Library/Code/AI/prompt/.agents/skills/prompt-memory/SKILL.md)` 是仓库内唯一权威 skill 源。
+- `templates/*` 是从 canonical skill 派生出来的宿主快照，不再作为手写真源维护。
+- `prompt adapters install <host>` 和 `prompt adapters install all` 负责自动落盘宿主侧配置；如缺少运行时产物，会先自动执行 `npm run build`。
+
+详细定位说明见：
+
+- `docs/superpowers/specs/2026-04-18-prompt-skill-runtime-design.md`
+- `docs/superpowers/specs/2026-04-19-prompt-quality-gate-positioning-design.md`
 
 ## 当前能力
 
@@ -249,6 +273,7 @@ node dist/src/cli/index.js policy threshold codex success_criteria 0.58
 
 ```bash
 node dist/src/cli/index.js adapters list
+node dist/src/cli/index.js adapters install all --scope project
 node dist/src/cli/index.js adapters install claude --scope project
 node dist/src/cli/index.js adapters install codex --scope project
 node dist/src/cli/index.js adapters install opencode --scope project
@@ -257,9 +282,14 @@ node dist/src/cli/index.js adapters doctor
 
 当前 adapter 形态：
 
-- `claude`：项目级 `.claude/settings.json` hook + skill 模板。
+- `claude`：项目级 `.claude/settings.json` hook + canonical skill 安装。
 - `codex`：项目级 `AGENTS.md` 托管块，或全局 Codex skill。
-- `opencode`：项目级 `.opencode/prompt-memory.md` 或全局 `~/.config/opencode/prompt-memory.md` 指令文件。它是 command-first 接入，需要在 OpenCode 指令体系中加载或粘贴该文件。
+- `opencode`：项目级 `.opencode/prompt-memory.md` 或全局 `~/.config/opencode/prompt-memory.md` 指令文件。
+
+安装说明：
+
+- `install all` 会在当前项目里一次性安装 `Claude + Codex + OpenCode`。
+- 如果 `dist/src/cli/index.js` 或 `dist/src/host/claude/hook-entry.js` 缺失，安装命令会自动先执行 `npm run build`。
 
 ## 数据目录
 
@@ -286,6 +316,19 @@ npm test
 npm run check
 npm run build
 ```
+
+## 开源协作
+
+- 许可证：`MIT`，见 [`LICENSE`](/Library/Code/AI/prompt/LICENSE)
+- 贡献说明：见 [`CONTRIBUTING.md`](/Library/Code/AI/prompt/CONTRIBUTING.md)
+- 安全披露：见 [`SECURITY.md`](/Library/Code/AI/prompt/SECURITY.md)
+- 协作规范：见 [`CODE_OF_CONDUCT.md`](/Library/Code/AI/prompt/CODE_OF_CONDUCT.md)
+
+GitHub Actions 会在 `push` 和 `pull_request` 上执行：
+
+- `npm test`
+- `npm run check`
+- `npm run build`
 
 ## 当前边界
 
