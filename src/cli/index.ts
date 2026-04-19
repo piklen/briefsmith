@@ -43,7 +43,7 @@ const helpLines = [
   "prompt stop",
   "prompt doctor",
   "prompt adapters list",
-  "prompt adapters install <claude|codex> [--scope project|global]",
+  "prompt adapters install <claude|codex|opencode|all> [--scope project|global]",
   "prompt adapters doctor [claude|codex] [--scope project|global]"
 ];
 

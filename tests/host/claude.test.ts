@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { installClaudeAdapter } from "../../src/host/claude/install.js";
 import { evaluateClaudePromptHook } from "../../src/host/claude/hook-entry.js";
+import { renderPromptMemoryClaudeSkill } from "../../src/host/prompt-memory-skill.js";
 import { Database } from "../../src/storage/database.js";
 import { PromptRepository } from "../../src/storage/prompt-repository.js";
 import { ProfileRepository } from "../../src/storage/profile-repository.js";
@@ -50,6 +51,10 @@ test("installClaudeAdapter merges project settings and writes a prompt skill", a
   assert.equal((settings.env as Record<string, string>).DEMO, "1");
   assert.equal(Array.isArray(userPromptSubmit), true);
   assert.equal(JSON.stringify(userPromptSubmit).includes("hook-entry.js"), true);
+  assert.equal(
+    readFileSync(join(claudeDir, "skills", "prompt-memory", "SKILL.md"), "utf8"),
+    await renderPromptMemoryClaudeSkill()
+  );
 });
 
 test("evaluateClaudePromptHook blocks vague prompts when required context is missing", async () => {

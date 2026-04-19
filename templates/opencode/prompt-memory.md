@@ -1,26 +1,38 @@
----
-name: prompt-memory
-description: Use when an OpenCode request is vague, references prior prompts, or would benefit from local prompt history before execution.
----
-
 # Prompt Memory for OpenCode
+
+Use the canonical prompt-memory skill plus the local runtime before acting on vague requests.
+
+# Prompt Memory
 
 ## When to Use
 
-- The user gives an under-specified instruction.
-- The user asks to recover or reuse a previous prompt.
-- The current request likely needs local prompt history or user-style context.
+- The user says something vague like "optimize this", "fix it", or "make it better"
+- The user wants to recover or reuse an older prompt
+- The current request is missing target, success criteria, constraints, or output format
+- The task would benefit from local prompt history before execution
+
+## Core Job
+
+Turn rough user intent into an executable task brief without inventing missing facts.
 
 ## What to Do
 
-1. Respect `.prompt-skill/config.json`; if prompt checks are disabled, do not force preflight.
-2. Run `node dist/src/cli/index.js preflight "<raw input>" --host opencode --json`.
-3. If `action` is `ask`, ask only the returned questions.
-4. If `action` is `compile`, use `compiledPrompt` as additional task context.
-5. Use `node dist/src/cli/index.js find "<query>"` when the user is trying to recover an older prompt.
+1. Check whether the request is missing target, success criteria, constraints, or output format.
+2. Search local prompt history when the user refers to earlier prompts or recurring task patterns.
+3. Reuse stable constraints from project instructions and explicit user boundaries.
+4. If missing context would materially change execution quality, ask only the smallest set of follow-up questions needed.
+5. If enough context is available, proceed with a clearer internal task brief instead of the raw user wording.
 
 ## Boundaries
 
-- Read only local persisted prompt history.
-- Do not add keyboard listeners, Accessibility input capture, OCR, or cloud sync.
-- Preserve explicit user constraints such as "不要改外部行为" and "keep API unchanged".
+- Do not invent facts the user did not provide.
+- Preserve explicit boundaries such as "不要改外部行为" and "keep API unchanged".
+- Prefer minimal follow-up questions over long clarification checklists.
+
+## OpenCode Runtime Integration
+
+1. Check `.prompt-skill/config.json` if it exists. If prompt checks are disabled for this project, do not force preflight.
+2. Use `node dist/src/cli/index.js preflight "<raw input>" --host opencode --json` when the request is vague or under-specified.
+3. If `action` is `ask`, ask only the returned follow-up questions before executing.
+4. If `action` is `compile`, treat `compiledPrompt` as additional execution context before you act.
+5. Use `node dist/src/cli/index.js find "<query>"` when the user is trying to recover an older prompt.

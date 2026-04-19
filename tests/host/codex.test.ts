@@ -4,6 +4,7 @@ import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { installCodexAdapter } from "../../src/host/codex/install.js";
+import { renderPromptMemoryCodexSkill } from "../../src/host/prompt-memory-skill.js";
 
 test("installCodexAdapter writes a managed AGENTS block without overwriting existing content", async () => {
   const root = mkdtempSync(join(tmpdir(), "prompt-skill-codex-"));
@@ -37,4 +38,17 @@ test("installCodexAdapter can install a global skill template", async () => {
     result.writtenFiles.some((file) => file.endsWith(".codex/skills/prompt-memory/SKILL.md")),
     true
   );
+});
+
+test("installCodexAdapter installs the canonical prompt-memory skill for global codex usage", async () => {
+  const root = mkdtempSync(join(tmpdir(), "prompt-skill-codex-"));
+
+  await installCodexAdapter({
+    projectRoot: root,
+    homeDir: root,
+    scope: "global"
+  });
+
+  const installed = readFileSync(join(root, ".codex", "skills", "prompt-memory", "SKILL.md"), "utf8");
+  assert.equal(installed, await renderPromptMemoryCodexSkill());
 });

@@ -19,6 +19,12 @@
 - `compile / preflight / adapters` 才是产品主链路。
 - 这个仓库的核心价值是把模糊用户输入压缩成更稳定、更低歧义的执行前 brief。
 
+当前 skill-first 打包约定：
+
+- `[.agents/skills/prompt-memory/SKILL.md](/Library/Code/AI/prompt/.agents/skills/prompt-memory/SKILL.md)` 是仓库内唯一权威 skill 源。
+- `templates/*` 是从 canonical skill 派生出来的宿主快照，不再作为手写真源维护。
+- `prompt adapters install <host>` 和 `prompt adapters install all` 负责自动落盘宿主侧配置；如缺少运行时产物，会先自动执行 `npm run build`。
+
 详细定位说明见：
 
 - `docs/superpowers/specs/2026-04-18-prompt-skill-runtime-design.md`
@@ -267,6 +273,7 @@ node dist/src/cli/index.js policy threshold codex success_criteria 0.58
 
 ```bash
 node dist/src/cli/index.js adapters list
+node dist/src/cli/index.js adapters install all --scope project
 node dist/src/cli/index.js adapters install claude --scope project
 node dist/src/cli/index.js adapters install codex --scope project
 node dist/src/cli/index.js adapters install opencode --scope project
@@ -275,9 +282,14 @@ node dist/src/cli/index.js adapters doctor
 
 当前 adapter 形态：
 
-- `claude`：项目级 `.claude/settings.json` hook + skill 模板。
+- `claude`：项目级 `.claude/settings.json` hook + canonical skill 安装。
 - `codex`：项目级 `AGENTS.md` 托管块，或全局 Codex skill。
-- `opencode`：项目级 `.opencode/prompt-memory.md` 或全局 `~/.config/opencode/prompt-memory.md` 指令文件。它是 command-first 接入，需要在 OpenCode 指令体系中加载或粘贴该文件。
+- `opencode`：项目级 `.opencode/prompt-memory.md` 或全局 `~/.config/opencode/prompt-memory.md` 指令文件。
+
+安装说明：
+
+- `install all` 会在当前项目里一次性安装 `Claude + Codex + OpenCode`。
+- 如果 `dist/src/cli/index.js` 或 `dist/src/host/claude/hook-entry.js` 缺失，安装命令会自动先执行 `npm run build`。
 
 ## 数据目录
 

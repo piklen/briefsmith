@@ -4,6 +4,7 @@ import { mkdtempSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { installOpenCodeAdapter } from "../../src/host/opencode/install.js";
+import { renderPromptMemoryOpenCodeInstructions } from "../../src/host/prompt-memory-skill.js";
 
 test("installOpenCodeAdapter writes project prompt-memory instructions", async () => {
   const root = mkdtempSync(join(tmpdir(), "prompt-skill-opencode-"));
@@ -17,8 +18,7 @@ test("installOpenCodeAdapter writes project prompt-memory instructions", async (
   assert.equal(result.writtenFiles.some((file) => file.endsWith(".opencode/prompt-memory.md")), true);
 
   const content = readFileSync(join(root, ".opencode", "prompt-memory.md"), "utf8");
-  assert.equal(content.includes("node dist/src/cli/index.js preflight"), true);
-  assert.equal(content.includes("--host opencode"), true);
+  assert.equal(content, await renderPromptMemoryOpenCodeInstructions());
 });
 
 test("installOpenCodeAdapter writes global prompt-memory instructions", async () => {
