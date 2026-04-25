@@ -218,6 +218,36 @@ test("runCli preflight returns ask action for low-information input", async () =
   assert.equal(payload.evidence.resolvedSlotSources.verification, "heuristic");
 });
 
+test("runCli preflight rejects unsupported hosts instead of silently using cli defaults", async () => {
+  const homeDir = mkdtempSync(join(tmpdir(), "prompt-skill-home-"));
+  const output: string[] = [];
+
+  const exitCode = await runCli(["preflight", "优化一下", "--host", "cursor", "--json"], {
+    cwd: process.cwd(),
+    homeDir,
+    stdout: (line) => output.push(line),
+    stderr: (line) => output.push(line)
+  });
+
+  assert.equal(exitCode, 1);
+  assert.equal(output.some((line) => line.includes("unsupported host: cursor")), true);
+});
+
+test("runCli preflight rejects unsupported frameworks instead of silently rendering plain text", async () => {
+  const homeDir = mkdtempSync(join(tmpdir(), "prompt-skill-home-"));
+  const output: string[] = [];
+
+  const exitCode = await runCli(["preflight", "优化一下", "--framework", "markdown"], {
+    cwd: process.cwd(),
+    homeDir,
+    stdout: (line) => output.push(line),
+    stderr: (line) => output.push(line)
+  });
+
+  assert.equal(exitCode, 1);
+  assert.equal(output.some((line) => line.includes("unsupported framework: markdown")), true);
+});
+
 test("runCli preflight asks for problem signals on bugfix-style requests", async () => {
   const homeDir = mkdtempSync(join(tmpdir(), "prompt-skill-home-"));
   const output: string[] = [];

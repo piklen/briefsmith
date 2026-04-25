@@ -297,7 +297,7 @@ briefsmith adapters doctor
 | --- | --- |
 | `off` | 当前项目禁用 prompt 检查 |
 | `suggest` | 置信度不足时优先追问 |
-| `auto-compile` | 始终编译，但保留低置信度证据 |
+| `auto-compile` | 跳过低置信度 gate，但如果 target 或 problem_signal 这类关键槽位仍未解析，仍然追问 |
 
 常用命令：
 

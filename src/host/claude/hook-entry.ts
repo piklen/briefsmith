@@ -2,9 +2,11 @@ import { homedir } from "node:os";
 import { fileURLToPath } from "node:url";
 import { globalDataDir, databasePath } from "../../config/paths.js";
 import { readProjectPolicy } from "../../config/project-policy.js";
+import { buildFollowUpQuestions } from "../../compiler/clarifier.js";
 import { compileOrClarify } from "../../compiler/compiler.js";
 import { isContinuationOnlyRequest, shouldUseHistoryEnrichment } from "../../compiler/continuation.js";
-import { retrievePromptSnippets } from "../../compiler/history-retriever.js";
+import { retrievePromptEntries } from "../../compiler/history-retriever.js";
+import type { SlotName } from "../../core/types.js";
 import { CompileSessionRepository } from "../../storage/compile-session-repository.js";
 import { Database } from "../../storage/database.js";
 import { ProfileRepository } from "../../storage/profile-repository.js";
@@ -33,6 +35,8 @@ export interface ClaudeHookResult {
   };
 }
 
+const SLOT_ORDER: SlotName[] = ["target", "problem_signal", "success_criteria", "constraints", "verification", "output_format"];
+
 export async function evaluateClaudePromptHook(
   input: ClaudeUserPromptSubmitInput,
   runtime: ClaudeHookRuntimeContext
@@ -52,19 +56,82 @@ export async function evaluateClaudePromptHook(
     const continuationSlots = isContinuationOnlyRequest(input.prompt)
       ? (compileSessionRepository.latestForProject(runtime.cwd)?.resolvedSlots ?? {})
       : {};
-    const snippets = shouldUseHistoryEnrichment(input.prompt)
-      ? retrievePromptSnippets(promptRepository, input.prompt, 3, {
+    const historyMatches = shouldUseHistoryEnrichment(input.prompt)
+      ? retrievePromptEntries(promptRepository, input.prompt, 3, {
           projectPath: runtime.cwd
         })
       : [];
-    const decision = compileOrClarify(input.prompt, profile.inferred, snippets, continuationSlots);
+    const decision = compileOrClarify(
+      input.prompt,
+      profile.inferred,
+      historyMatches.map((row) => ({
+        id: row.id,
+        text: row.promptText
+      })),
+      continuationSlots
+    );
 
     if (decision.kind === "questions") {
+      compileSessionRepository.save({
+        projectPath: runtime.cwd,
+        rawInput: input.prompt,
+        compiledPrompt: "",
+        followUpQuestions: decision.followUpQuestions,
+        resolvedSlots: decision.resolvedSlots,
+        targetFramework: "plain",
+        targetHost: "claude",
+        usedHistoryIds: decision.usedHistoryIds,
+        historySlotIds: decision.resolvedSlotHistoryIds
+      });
+
       return {
         decision: "block",
         reason: `Prompt Skill 需要先补充这些信息：\n- ${decision.followUpQuestions.join("\n- ")}`
       };
     }
+
+    const lowConfidenceSlots = policy.mode === "auto-compile"
+      ? []
+      : findLowConfidenceSlots(
+          decision.resolvedSlotConfidence,
+          policy.hostSlotConfidenceThresholds.claude
+        );
+    if (lowConfidenceSlots.length > 0) {
+      const followUpQuestions = buildFollowUpQuestions({
+        rawInput: input.prompt,
+        missing: lowConfidenceSlots,
+        resolvedSlots: decision.resolvedSlots,
+        inferredDefaults: profile.inferred
+      });
+      compileSessionRepository.save({
+        projectPath: runtime.cwd,
+        rawInput: input.prompt,
+        compiledPrompt: "",
+        followUpQuestions,
+        resolvedSlots: decision.resolvedSlots,
+        targetFramework: "plain",
+        targetHost: "claude",
+        usedHistoryIds: decision.usedHistoryIds,
+        historySlotIds: decision.resolvedSlotHistoryIds
+      });
+
+      return {
+        decision: "block",
+        reason: `Prompt Skill 需要先补充这些信息：\n- ${followUpQuestions.join("\n- ")}`
+      };
+    }
+
+    compileSessionRepository.save({
+      projectPath: runtime.cwd,
+      rawInput: input.prompt,
+      compiledPrompt: decision.text,
+      followUpQuestions: [],
+      resolvedSlots: decision.resolvedSlots,
+      targetFramework: "plain",
+      targetHost: "claude",
+      usedHistoryIds: decision.usedHistoryIds,
+      historySlotIds: decision.resolvedSlotHistoryIds
+    });
 
     return {
       hookSpecificOutput: {
@@ -75,6 +142,17 @@ export async function evaluateClaudePromptHook(
   } finally {
     database.close();
   }
+}
+
+function findLowConfidenceSlots(
+  resolvedSlotConfidence: Partial<Record<SlotName, number>>,
+  slotThresholds: Record<SlotName, number>
+): SlotName[] {
+  return SLOT_ORDER.filter((slot) => {
+    const value = resolvedSlotConfidence[slot];
+    const threshold = slotThresholds[slot];
+    return typeof value === "number" && value < threshold;
+  });
 }
 
 async function main(): Promise<void> {

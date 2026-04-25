@@ -50,6 +50,10 @@ interface PreflightPayload {
 
 export async function runPreflightCommand(args: string[], context: CliContext): Promise<number> {
   const options = parsePreflightArgs(args);
+  if (options.error) {
+    context.stderr(options.error);
+    return 1;
+  }
   if (!options.rawInput) {
     context.stderr(`usage: ${CLI_NAME} preflight "<raw input>" [--host cli|claude|codex|opencode] [--json]`);
     return 1;
@@ -346,11 +350,13 @@ function parsePreflightArgs(args: string[]): {
   host: PreflightHost;
   framework: Framework;
   json: boolean;
+  error?: string;
 } {
   const inputParts: string[] = [];
   let host: PreflightHost = "cli";
   let framework: Framework = "plain";
   let json = false;
+  let error: string | undefined;
 
   for (let index = 0; index < args.length; index += 1) {
     const value = args[index];
@@ -361,14 +367,24 @@ function parsePreflightArgs(args: string[]): {
 
     if (value === "--host") {
       const candidate = args[index + 1];
-      host = parseHost(candidate) ?? host;
+      const parsed = parseHost(candidate);
+      if (!parsed) {
+        error = candidate ? `unsupported host: ${candidate}` : "missing value for --host";
+        break;
+      }
+      host = parsed;
       index += 1;
       continue;
     }
 
     if (value === "--framework") {
       const candidate = args[index + 1];
-      framework = parseFramework(candidate) ?? framework;
+      const parsed = parseFramework(candidate);
+      if (!parsed) {
+        error = candidate ? `unsupported framework: ${candidate}` : "missing value for --framework";
+        break;
+      }
+      framework = parsed;
       index += 1;
       continue;
     }
@@ -380,7 +396,8 @@ function parsePreflightArgs(args: string[]): {
     rawInput: inputParts.join(" ").trim(),
     host,
     framework,
-    json
+    json,
+    error
   };
 }
 

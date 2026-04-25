@@ -125,7 +125,12 @@ interface SlotResolutionCandidate {
 
 export function compilePrompt(input: CompilePromptInput): string {
   const defaults = renderContextEntries(input.inferredDefaults);
-  const answers = renderSlotEntries(input.followUpAnswers);
+  const answers = renderSlotEntries(
+    input.followUpAnswers,
+    input.resolvedSlotSources ?? {},
+    input.resolvedSlotConfidence ?? {},
+    input.resolvedSlotHistoryIds ?? {}
+  );
 
   const history = input.retrievedPromptSnippets.map((snippet) => `- ${snippet}`).join("\n");
 
@@ -208,6 +213,9 @@ export function compileOrClarify(
     rawInput,
     inferredDefaults,
     followUpAnswers: resolvedSlots,
+    resolvedSlotSources,
+    resolvedSlotConfidence,
+    resolvedSlotHistoryIds,
     retrievedPromptSnippets: effectivePromptSnippets
   });
 
@@ -534,14 +542,60 @@ function extractProblemSignal(text: string): string | null {
   return null;
 }
 
-function renderSlotEntries(values: Partial<Record<SlotName, string>>): string {
+function renderSlotEntries(
+  values: Partial<Record<SlotName, string>>,
+  sources: Partial<Record<SlotName, SlotResolutionSource>>,
+  confidence: Partial<Record<SlotName, number>>,
+  historyIds: Partial<Record<SlotName, string>>
+): string {
   const lines = SLOT_RENDER_ORDER
     .flatMap((slot) => {
       const value = values[slot];
-      return value ? [`- ${slot}: ${value}`] : [];
+      if (!value) {
+        return [];
+      }
+
+      const label = renderSlotLabel(slot, sources);
+      const metadata = renderSlotMetadata(slot, sources, confidence, historyIds);
+      return [`- ${label}${metadata}: ${value}`];
     });
 
   return lines.join("\n");
+}
+
+function renderSlotLabel(
+  slot: SlotName,
+  sources: Partial<Record<SlotName, SlotResolutionSource>>
+): string {
+  return slot === "success_criteria" && sources[slot] === "heuristic"
+    ? "default_success_direction"
+    : slot;
+}
+
+function renderSlotMetadata(
+  slot: SlotName,
+  sources: Partial<Record<SlotName, SlotResolutionSource>>,
+  confidence: Partial<Record<SlotName, number>>,
+  historyIds: Partial<Record<SlotName, string>>
+): string {
+  const parts: string[] = [];
+  const source = sources[slot];
+  const confidenceValue = confidence[slot];
+  const historyId = historyIds[slot];
+
+  if (source) {
+    parts.push(source);
+  }
+
+  if (typeof confidenceValue === "number") {
+    parts.push(`confidence ${confidenceValue.toFixed(2)}`);
+  }
+
+  if (historyId) {
+    parts.push(`history ${historyId}`);
+  }
+
+  return parts.length > 0 ? ` [${parts.join(", ")}]` : "";
 }
 
 function normalizeHistorySnippets(

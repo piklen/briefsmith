@@ -184,3 +184,52 @@ test("compileOrClarify tracks the exact history entry used for a resolved slot",
   assert.equal(result.text.includes("优化导入逻辑并保持外部命令行为不变"), true);
   assert.equal(result.text.includes("如果不能那需要让ai去问用户"), false);
 });
+
+test("compileOrClarify labels inferred slot sources and confidence in compiled briefs", () => {
+  const result = compileOrClarify(
+    "优化一下这个导入逻辑",
+    {
+      preferred_language: "zh-CN"
+    },
+    [
+      {
+        id: "codex:constraint-history",
+        text: "优化导入逻辑并保持外部命令行为不变"
+      }
+    ]
+  );
+
+  assert.equal(result.kind, "compiled");
+  assert.equal(result.text.includes("- target [input, confidence 0.96]:"), true);
+  assert.equal(result.text.includes("- default_success_direction [heuristic, confidence 0.68]:"), true);
+  assert.equal(result.text.includes("- constraints [history, confidence 0.82, history codex:constraint-history]:"), true);
+  assert.equal(result.text.includes("- verification [heuristic, confidence 0.78]:"), true);
+});
+
+test("compileOrClarify renders heuristic success criteria as default success direction", () => {
+  const result = compileOrClarify(
+    "optimize this import flow, keep the external API unchanged, and verify with the relevant tests",
+    {
+      preferred_language: "en"
+    },
+    []
+  );
+
+  assert.equal(result.kind, "compiled");
+  assert.equal(result.text.includes("- default_success_direction [heuristic, confidence 0.68]:"), true);
+  assert.equal(result.text.includes("- success_criteria [heuristic"), false);
+});
+
+test("compileOrClarify keeps explicit success criteria labeled as success criteria", () => {
+  const result = compileOrClarify(
+    "optimize this import flow, success means duplicate parsing happens only once, keep the external API unchanged, and verify with the relevant tests",
+    {
+      preferred_language: "en"
+    },
+    []
+  );
+
+  assert.equal(result.kind, "compiled");
+  assert.equal(result.text.includes("- success_criteria [input, confidence 0.96]:"), true);
+  assert.equal(result.text.includes("- default_success_direction"), false);
+});

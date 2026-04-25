@@ -55,6 +55,18 @@ test("runCli prints top-level help for help alias", async () => {
   assert.equal(output.some((line) => line.includes(`${CLI_NAME} demo preflight`) && line.includes("#")), true);
 });
 
+test("runCli compile rejects unsupported frameworks instead of silently using plain output", async () => {
+  const output: string[] = [];
+  const exitCode = await runCli(["compile", "optimize this import flow", "--framework", "markdown"], {
+    cwd: process.cwd(),
+    stdout: (line) => output.push(line),
+    stderr: (line) => output.push(line),
+  });
+
+  assert.equal(exitCode, 1);
+  assert.equal(output.some((line) => line.includes("unsupported framework: markdown")), true);
+});
+
 test("runCli suggests --help when command is unknown", async () => {
   const output: string[] = [];
   const exitCode = await runCli(["wat"], {

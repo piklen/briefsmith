@@ -206,6 +206,150 @@ test("evaluateClaudePromptHook auto-fills high-confidence missing context instea
   }
 });
 
+test("evaluateClaudePromptHook respects project-level Claude confidence thresholds", async () => {
+  const root = mkdtempSync(join(tmpdir(), "prompt-skill-hook-"));
+  const promptSkillDir = join(root, ".prompt-skill");
+  mkdirSync(promptSkillDir, { recursive: true });
+  writeFileSync(
+    join(promptSkillDir, "config.json"),
+    `${JSON.stringify({
+      enabled: true,
+      mode: "suggest",
+      hostConfidenceThresholds: {
+        claude: 0.9
+      },
+      updatedAt: "2026-04-19T10:00:00.000Z"
+    }, null, 2)}\n`
+  );
+  const dataDir = join(root, "Library", "Application Support", "PromptSkill");
+  const database = new Database(join(dataDir, "skill.db"));
+  const promptRepository = new PromptRepository(database);
+  const profileRepository = new ProfileRepository(database);
+
+  promptRepository.upsertMany([
+    {
+      id: "codex:history-threshold-1",
+      tool: "codex",
+      projectPath: root,
+      sessionId: "session-threshold-1",
+      timestamp: "2026-04-19T10:00:00.000Z",
+      promptText: "优化导入逻辑并保持外部命令行为不变",
+      sourceFile: "/tmp/source.jsonl",
+      sourceOffset: 0,
+      fingerprint: "fp-history-threshold-1",
+      isFavorite: false,
+      tags: [],
+      importedAt: "2026-04-19T10:00:00.000Z"
+    }
+  ]);
+  profileRepository.save({
+    scope: "global",
+    confirmed: {},
+    inferred: {
+      preferred_language: "zh-CN"
+    },
+    signals: {},
+    updatedAt: "2026-04-19T10:00:00.000Z"
+  });
+
+  try {
+    const result = await evaluateClaudePromptHook(
+      {
+        cwd: root,
+        prompt: "优化一下这个导入逻辑",
+        session_id: "session-threshold-2",
+        transcript_path: join(root, "session.jsonl"),
+        permission_mode: "default",
+        hook_event_name: "UserPromptSubmit"
+      },
+      {
+        cwd: root,
+        homeDir: root
+      }
+    );
+
+    assert.equal(result?.decision, "block");
+    assert.equal((result?.reason ?? "").includes("成功标准"), true);
+  } finally {
+    database.close();
+  }
+});
+
+test("evaluateClaudePromptHook saves compiled sessions so continuation prompts can reuse them", async () => {
+  const root = mkdtempSync(join(tmpdir(), "prompt-skill-hook-"));
+  const dataDir = join(root, "Library", "Application Support", "PromptSkill");
+  const database = new Database(join(dataDir, "skill.db"));
+  const promptRepository = new PromptRepository(database);
+  const profileRepository = new ProfileRepository(database);
+
+  promptRepository.upsertMany([
+    {
+      id: "codex:history-continuation-save-1",
+      tool: "codex",
+      projectPath: root,
+      sessionId: "session-history-continuation-save-1",
+      timestamp: "2026-04-19T10:00:00.000Z",
+      promptText: "优化导入逻辑并保持外部命令行为不变",
+      sourceFile: "/tmp/source.jsonl",
+      sourceOffset: 0,
+      fingerprint: "fp-history-continuation-save-1",
+      isFavorite: false,
+      tags: [],
+      importedAt: "2026-04-19T10:00:00.000Z"
+    }
+  ]);
+  profileRepository.save({
+    scope: "global",
+    confirmed: {},
+    inferred: {
+      preferred_language: "zh-CN"
+    },
+    signals: {},
+    updatedAt: "2026-04-19T10:00:00.000Z"
+  });
+
+  try {
+    const first = await evaluateClaudePromptHook(
+      {
+        cwd: root,
+        prompt: "优化一下这个导入逻辑",
+        session_id: "session-continuation-save-1",
+        transcript_path: join(root, "session.jsonl"),
+        permission_mode: "default",
+        hook_event_name: "UserPromptSubmit"
+      },
+      {
+        cwd: root,
+        homeDir: root
+      }
+    );
+
+    const second = await evaluateClaudePromptHook(
+      {
+        cwd: root,
+        prompt: "继续优化",
+        session_id: "session-continuation-save-2",
+        transcript_path: join(root, "session.jsonl"),
+        permission_mode: "default",
+        hook_event_name: "UserPromptSubmit"
+      },
+      {
+        cwd: root,
+        homeDir: root
+      }
+    );
+    const latest = new CompileSessionRepository(database).latestForProject(root);
+
+    assert.equal(first?.decision ?? "", "");
+    assert.equal(second?.decision ?? "", "");
+    assert.equal(second?.hookSpecificOutput?.additionalContext?.includes("导入逻辑"), true);
+    assert.equal(second?.hookSpecificOutput?.additionalContext?.includes("外部行为"), true);
+    assert.deepEqual(latest?.usedHistoryIds, []);
+  } finally {
+    database.close();
+  }
+});
+
 test("evaluateClaudePromptHook reuses the latest same-project compile session for continuation prompts", async () => {
   const root = mkdtempSync(join(tmpdir(), "prompt-skill-hook-"));
   const dataDir = join(root, "Library", "Application Support", "PromptSkill");

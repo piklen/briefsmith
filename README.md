@@ -297,7 +297,7 @@ Policy modes:
 | --- | --- |
 | `off` | Disable prompt checks for the current project |
 | `suggest` | Ask follow-up questions when confidence is too low |
-| `auto-compile` | Always compile, but still keep low-confidence evidence |
+| `auto-compile` | Bypass the low-confidence gate, but still ask when critical slots such as target or problem signal are unresolved |
 
 Useful commands:
 

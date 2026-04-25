@@ -49,6 +49,9 @@ export interface CompilePromptInput {
   rawInput: string;
   inferredDefaults: Record<string, unknown>;
   followUpAnswers: Partial<Record<SlotName, string>>;
+  resolvedSlotSources?: Partial<Record<SlotName, SlotResolutionSource>>;
+  resolvedSlotConfidence?: Partial<Record<SlotName, number>>;
+  resolvedSlotHistoryIds?: Partial<Record<SlotName, string>>;
   retrievedPromptSnippets: string[];
 }
 

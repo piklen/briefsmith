@@ -1,0 +1,139 @@
+[
+  {
+    "id": "vague-zh-optimize-asks-for-target-and-boundary",
+    "reason": "低信息中文优化请求缺少 target 和 constraints，不能安全编译。",
+    "rawInput": "帮我优化",
+    "inferredDefaults": {
+      "preferred_language": "zh-CN"
+    },
+    "expected": {
+      "action": "ask",
+      "missing": ["target", "constraints"]
+    }
+  },
+  {
+    "id": "vague-en-optimize-asks-for-target-and-boundary",
+    "reason": "低信息英文优化请求缺少 target 和 constraints，不能让 agent 猜对象。",
+    "rawInput": "optimize this",
+    "inferredDefaults": {
+      "preferred_language": "en"
+    },
+    "expected": {
+      "action": "ask",
+      "missing": ["target", "constraints"]
+    }
+  },
+  {
+    "id": "bugfix-without-symptom-asks-for-problem-signal",
+    "reason": "bugfix 请求如果没有具体现象，容易修错问题，必须 ask。",
+    "rawInput": "修复这个登录流程，不要改变外部接口，并运行相关测试验证",
+    "inferredDefaults": {
+      "preferred_language": "zh-CN"
+    },
+    "expected": {
+      "action": "ask",
+      "missing": ["problem_signal"]
+    }
+  },
+  {
+    "id": "explicit-en-request-compiles-and-preserves-boundaries",
+    "reason": "输入已经包含 target、constraints 和 verification，剩余 success criteria 可由低置信 heuristic 补齐后 compile。",
+    "rawInput": "optimize this import flow, keep the external API unchanged, and verify with the relevant tests",
+    "inferredDefaults": {
+      "preferred_language": "en"
+    },
+    "expected": {
+      "action": "compile",
+      "missing": [],
+      "resolvedSlots": {
+        "target": "import flow",
+        "constraints": "keep the external API unchanged",
+        "verification": "verify with the relevant tests"
+      }
+    }
+  },
+  {
+    "id": "continuation-reuses-session-slots-without-history",
+    "reason": "continuation-only 请求应该优先复用同项目最近 compile session，不混入 raw history。",
+    "rawInput": "继续优化",
+    "inferredDefaults": {
+      "preferred_language": "zh-CN"
+    },
+    "continuationSlots": {
+      "target": "导入逻辑",
+      "constraints": "不要改变外部命令行为",
+      "verification": "运行相关测试验证"
+    },
+    "expected": {
+      "action": "compile",
+      "missing": [],
+      "resolvedSlots": {
+        "target": "导入逻辑",
+        "constraints": "不要改变外部命令行为",
+        "verification": "运行相关测试验证"
+      },
+      "usedHistoryIds": []
+    }
+  },
+  {
+    "id": "history-provenance-records-exact-used-entry",
+    "reason": "history 命中不等于 history 使用；只有实际补齐 slot 的历史条目应该进入 usedHistoryIds。",
+    "rawInput": "优化一下这个导入逻辑",
+    "inferredDefaults": {
+      "preferred_language": "zh-CN"
+    },
+    "history": [
+      {
+        "id": "codex:meta-history",
+        "text": "优化一下这个导入逻辑，如果不能那需要让ai去问用户。"
+      },
+      {
+        "id": "codex:constraint-history",
+        "text": "优化导入逻辑并保持外部命令行为不变"
+      }
+    ],
+    "expected": {
+      "action": "compile",
+      "missing": [],
+      "usedHistoryIds": ["codex:constraint-history"],
+      "historySlotIds": {
+        "constraints": "codex:constraint-history"
+      }
+    }
+  },
+  {
+    "id": "meta-history-does-not-become-execution-constraint",
+    "reason": "元叙事里的“让 AI 去问用户”不是任务约束，不能被当成 constraints。",
+    "rawInput": "帮我优化",
+    "inferredDefaults": {
+      "preferred_language": "zh-CN"
+    },
+    "history": [
+      {
+        "id": "codex:meta-only",
+        "text": "本项目想要做的事情是通过skill来帮助ai拿到的提示词更好，如果不能那需要让ai去问用户。"
+      }
+    ],
+    "expected": {
+      "action": "ask",
+      "missing": ["target", "constraints"],
+      "usedHistoryIds": []
+    }
+  },
+  {
+    "id": "clear-build-request-compiles-with-explicit-output-format",
+    "reason": "文档/方案类请求如果已经给出输出形式、约束和验证方式，可以 compile。",
+    "rawInput": "write a migration plan for the prompt database, keep existing data compatible, output markdown, and verify with migration tests",
+    "inferredDefaults": {
+      "preferred_language": "en"
+    },
+    "expected": {
+      "action": "compile",
+      "missing": [],
+      "resolvedSlots": {
+        "constraints": "keep existing data compatible",
+        "verification": "verify with migration tests"
+      }
+    }
+  }
+]

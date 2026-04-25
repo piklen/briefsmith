@@ -194,13 +194,18 @@ export async function runCli(args: string[], partialContext?: Partial<CliContext
         return runCompileSessionsCommand(rest, context);
       }
       const frameworkFlagIndex = rest.indexOf("--framework");
-      const framework = frameworkFlagIndex >= 0 ? rest[frameworkFlagIndex + 1] ?? "plain" : "plain";
+      const frameworkCandidate = frameworkFlagIndex >= 0 ? rest[frameworkFlagIndex + 1] : "plain";
+      const framework = parseFramework(frameworkCandidate);
+      if (!framework) {
+        context.stderr(frameworkCandidate ? `unsupported framework: ${frameworkCandidate}` : "missing value for --framework");
+        return 1;
+      }
       const inputParts = frameworkFlagIndex >= 0 ? rest.slice(0, frameworkFlagIndex) : rest;
       if (inputParts.length === 0) {
         context.stderr(`usage: ${CLI_NAME} compile "<raw input>"`);
         return 1;
       }
-      return runCompileCommand(inputParts.join(" "), context, framework as "plain" | "gsd" | "superpowers" | "gstack");
+      return runCompileCommand(inputParts.join(" "), context, framework);
     }
     case "preflight":
       return runPreflightCommand(rest, context);
@@ -229,6 +234,12 @@ export async function runCli(args: string[], partialContext?: Partial<CliContext
       context.stderr(`Run \`${CLI_NAME} --help\` to see available commands.`);
       return 1;
   }
+}
+
+function parseFramework(value: string | undefined): "plain" | "gsd" | "superpowers" | "gstack" | null {
+  return value === "plain" || value === "gsd" || value === "superpowers" || value === "gstack"
+    ? value
+    : null;
 }
 
 if (isCliEntrypoint(process.argv[1], import.meta.url)) {
